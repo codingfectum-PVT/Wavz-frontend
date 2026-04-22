@@ -180,6 +180,7 @@ export const CreateTokenForm: FC = () => {
 
       const formDataUpload = new FormData();
       formDataUpload.append('image', formData.image);
+      if (formData.banner) formDataUpload.append('banner', formData.banner);
       formDataUpload.append('name', formData.name);
       formDataUpload.append('symbol', formData.symbol);
       formDataUpload.append('description', formData.description);
@@ -197,7 +198,7 @@ export const CreateTokenForm: FC = () => {
         throw new Error('Failed to upload metadata');
       }
 
-      const { metadataUri } = await uploadRes.json();
+      const { metadataUri, imageUrl, bannerUrl } = await uploadRes.json();
 
       toast.loading('Creating token on Solana...', { id: 'create' });
 
@@ -226,6 +227,8 @@ export const CreateTokenForm: FC = () => {
             name: formData.name,
             symbol: formData.symbol,
             uri: metadataUri,
+            image: imageUrl,
+            banner: bannerUrl || undefined,
             creatorAddress: publicKey?.toBase58(),
             description: formData.description,
           }),

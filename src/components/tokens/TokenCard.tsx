@@ -26,7 +26,7 @@ export const TokenCard: FC<{ token: Token }> = ({ token }) => {
 
     const fetchMeta = async () => {
       try {
-        const res = await fetch(token.uri);
+        const res = await fetch(token.uri!);
         const data = await res.json();
         setMetadata(data);
       } catch {
@@ -58,7 +58,7 @@ export const TokenCard: FC<{ token: Token }> = ({ token }) => {
   // 🔥 SAME SOCIAL LOGIC (IDENTICAL to TokenDetail)
   const socialLinks = {
     twitter:
-      token.socials?.twitter ||
+      token.twitter ||
       metadata?.twitter ||
       metadata?.x ||
       socialFromAttributes.twitter ||
@@ -66,14 +66,14 @@ export const TokenCard: FC<{ token: Token }> = ({ token }) => {
       '',
 
     telegram:
-      token.socials?.telegram ||
+      token.telegram ||
       metadata?.telegram ||
       socialFromAttributes.telegram ||
       metadata?.extensions?.telegram ||
       '',
 
     website:
-      token.socials?.website ||
+      token.website ||
       metadata?.website ||
       metadata?.external_url ||
       socialFromAttributes.website ||
