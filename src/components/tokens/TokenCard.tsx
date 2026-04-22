@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, useMemo } from 'react';
+import { FC, useMemo, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { TrendingUp, TrendingDown, Users } from 'lucide-react';
@@ -16,6 +16,76 @@ export const TokenCard: FC<{ token: Token }> = ({ token }) => {
   const defaultImage = `https://api.dicebear.com/7.x/shapes/svg?seed=${token.mint}`;
 
   const { price: solPriceUsd } = useSolPrice();
+
+  // 🔥 METADATA STATE
+  const [metadata, setMetadata] = useState<any>(null);
+
+  // 🔥 FETCH METADATA (same as detail page)
+  useEffect(() => {
+    if (!token.uri) return;
+
+    const fetchMeta = async () => {
+      try {
+        const res = await fetch(token.uri);
+        const data = await res.json();
+        setMetadata(data);
+      } catch {
+        console.log('metadata fetch failed');
+      }
+    };
+
+    fetchMeta();
+  }, [token.uri]);
+
+  // 🔥 ATTRIBUTE PARSER (same as detail)
+  const socialFromAttributes = Array.isArray(metadata?.attributes)
+    ? metadata.attributes.reduce(
+        (acc: any, item: any) => {
+          const type = String(item?.trait_type || '').toLowerCase().trim();
+          const value = String(item?.value || '').trim();
+          if (!value) return acc;
+
+          if (type === 'twitter' || type === 'x') acc.twitter = value;
+          if (type === 'telegram' || type === 'tg') acc.telegram = value;
+          if (type === 'website' || type === 'web') acc.website = value;
+
+          return acc;
+        },
+        {}
+      )
+    : {};
+
+  // 🔥 SAME SOCIAL LOGIC (IDENTICAL to TokenDetail)
+  const socialLinks = {
+    twitter:
+      token.socials?.twitter ||
+      metadata?.twitter ||
+      metadata?.x ||
+      socialFromAttributes.twitter ||
+      metadata?.extensions?.twitter ||
+      '',
+
+    telegram:
+      token.socials?.telegram ||
+      metadata?.telegram ||
+      socialFromAttributes.telegram ||
+      metadata?.extensions?.telegram ||
+      '',
+
+    website:
+      token.socials?.website ||
+      metadata?.website ||
+      metadata?.external_url ||
+      socialFromAttributes.website ||
+      metadata?.extensions?.website ||
+      '',
+  };
+
+  const normalizeLink = (url?: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    return `https://${url}`;
+  };
 
   // 🔥 SAME MARKET CAP LOGIC (UNCHANGED)
   const liquidityMarketCap = useMemo(() => {
@@ -44,22 +114,21 @@ export const TokenCard: FC<{ token: Token }> = ({ token }) => {
             className="object-cover"
           />
 
-   
-        <div
-        className={`absolute top-3 right-3 flex items-center gap-1 px-2 py-1 text-xs rounded-full ${
-          isPositive ? 'bg-[#09182b] text-[#84FF00]' : 'bg-red-500 text-white'
-        }`}
-      >
-        {isPositive ? (
-          <TrendingUp className="w-3 h-3" />
-        ) : (
-          <TrendingDown className="w-3 h-3" />
-        )}
+          <div
+            className={`absolute top-3 right-3 flex items-center gap-1 px-2 py-1 text-xs rounded-full ${
+              isPositive ? 'bg-[#09182b] text-[#84FF00]' : 'bg-red-500 text-white'
+            }`}
+          >
+            {isPositive ? (
+              <TrendingUp className="w-3 h-3" />
+            ) : (
+              <TrendingDown className="w-3 h-3" />
+            )}
 
-        <span>
-          {Math.abs(priceChange).toFixed(2)}%
-        </span>
-      </div>
+            <span>
+              {Math.abs(priceChange).toFixed(2)}%
+            </span>
+          </div>
         </div>
 
         {/* 🔥 CONTENT */}
@@ -85,16 +154,35 @@ export const TokenCard: FC<{ token: Token }> = ({ token }) => {
           <div className="flex justify-between items-center mt-4">
             <div>
               <p className="text-xs text-gray-400">Price</p>
-              <p className="text-white font-medium">
-                {formatPrice(token.price || 0, solPriceUsd)}
-              </p>
+
+              {/* 🔥 PRICE + SOCIALS (NO DESIGN CHANGE) */}
+              <div className="flex items-center gap-2">
+                <p className="text-white font-medium">
+                  {formatPrice(token.price || 0, solPriceUsd)}
+                </p>
+              </div>
             </div>
 
-            <div className={`${isPositive ? 'text-green-400' : 'text-red-400'} flex items-center gap-1`}>
-              {isPositive ? <TrendingUp size={14}/> : <TrendingDown size={14}/>}
-              <span className="text-sm font-medium">
-                {isPositive ? '+' : ''}{priceChange.toFixed(2)}%
-              </span>
+            <div className={`flex items-center gap-1`}>
+                              <div className="flex items-center gap-1">
+                  {socialLinks.telegram && (
+                    <a href={normalizeLink(socialLinks.telegram)} target="_blank">
+                      <Image src="/images/tgbg.png" alt="tg" width={25} height={25}/>
+                    </a>
+                  )}
+
+                  {socialLinks.twitter && (
+                    <a href={normalizeLink(socialLinks.twitter)} target="_blank">
+                      <Image src="/images/xbg.png" alt="x" width={25} height={25}/>
+                    </a>
+                  )}
+
+                  {socialLinks.website && (
+                    <a href={normalizeLink(socialLinks.website)} target="_blank">
+                      <Image src="/images/webbg.png" alt="web" width={25} height={25}/>
+                    </a>
+                  )}
+                </div>
             </div>
           </div>
 
@@ -116,7 +204,7 @@ export const TokenCard: FC<{ token: Token }> = ({ token }) => {
 
             <div className="bg-[#182536] rounded-xl p-2 ">
               <p className="text-[13px] text-gray-400">Holders</p>
-              <p className="text-white text-sm font-medium flex items-center  gap-1">
+              <p className="text-white text-sm font-medium flex items-center gap-1">
                 <Users size={12}/>
                 {holders}
               </p>
@@ -124,36 +212,27 @@ export const TokenCard: FC<{ token: Token }> = ({ token }) => {
           </div>
 
           {/* FOOTER */}
-<div className="mt-4 flex items-center justify-between text-xs">
+          <div className="mt-4 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 text-[#6FA8FF]">
+              <img
+                src="/images/duck.png"
+                alt="creator"
+                className="w-4 h-4 object-contain"
+              />
+              <span className="font-medium">
+                {token.creatorAddress.slice(0, 4)}...
+                {token.creatorAddress.slice(-4)}
+              </span>
+            </div>
 
-  {/* LEFT — CREATOR */}
-  <div className="flex items-center gap-2 text-[#6FA8FF]">
-    
-    {/* 🦆 IMAGE */}
-    <img
-      src="/images/duck.png"
-      alt="creator"
-      className="w-4 h-4 object-contain"
-    />
-
-    {/* ADDRESS */}
-    <span className="font-medium">
-      {token.creatorAddress.slice(0, 4)}...
-      {token.creatorAddress.slice(-4)}
-    </span>
-
-  </div>
-
-  {/* RIGHT — TIME */}
-  <div className="text-gray-400">
-    Created {formatTimeAgo(
-      typeof token.createdAt === 'number'
-        ? token.createdAt
-        : new Date(token.createdAt).getTime()
-    )}
-  </div>
-
-</div>
+            <div className="text-gray-400">
+              Created {formatTimeAgo(
+                typeof token.createdAt === 'number'
+                  ? token.createdAt
+                  : new Date(token.createdAt).getTime()
+              )}
+            </div>
+          </div>
 
         </div>
       </div>

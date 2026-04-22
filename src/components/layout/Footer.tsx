@@ -78,14 +78,14 @@ export const Footer = () => {
             gap: isMobile ? '16px 20px' : '28px',
           }}
         >
-          {['Home', 'Gitbook', 'Support', 'Terms', 'Privacy'].map((item) => (
+          {['Home', 'Pulse', 'Gitbook', 'Support', 'Terms', 'Privacy'].map((item) => (
             <Link
               key={item}
               href="/#"
               style={{
                 color: '#ffffff',
                 fontSize: '14px',
-                opacity: 0.85,
+                // opacity: 0.85,
                 textDecoration: 'none',
                 whiteSpace: 'nowrap',
               }}

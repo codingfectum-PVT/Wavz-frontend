@@ -315,7 +315,8 @@ export default function ProfilePage() {
             {isOwnProfile && (
               <Link
                 href="/create"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#FE9216] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#e68312]"
+                className="inline-flex items-center gap-2 rounded-xl  px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#e68312]"
+                                  style={{ backgroundColor: '#FE9216', borderRadius: '14px',textAlign:'left',fontSize:'18px',boxShadow:'0 6px 4px 0 rgba(255, 255, 255, 0.50) inset, 0 72px 20px 0 rgba(254, 146, 22, 0.00), 0 46px 18px 0 rgba(254, 146, 22, 0.03), 0 26px 16px 0 rgba(254, 146, 22, 0.11), 0 12px 12px 0 rgba(254, 146, 22, 0.19), 0 3px 6px 0 rgba(254, 146, 22, 0.22)'  }}
               >
                 <Plus className="h-4 w-4" />
                 Create Token

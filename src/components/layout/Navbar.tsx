@@ -5,15 +5,44 @@ import Link from 'next/link';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Plus, Search, Menu, X, User } from 'lucide-react';
-
+import { Token, useTokens } from '@/hooks/useApi';
 export const Navbar: FC = () => {
   const { publicKey } = useWallet();
-
+const [results, setResults] = useState<Token[]>([]);
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+const { data } = useTokens({ limit: 100 });
+useEffect(() => {
+  if (!search.trim()) {
+    setResults([]);
+    return;
+  }
 
+const query = search.trim().toLowerCase();
+
+if (query.length < 1) {
+  setResults([]); // 🔥 don't show for 1 char
+  return;
+}
+
+const filtered =
+  data?.tokens?.filter((t: any) => {
+    const name = t.name?.toLowerCase() || '';
+    const symbol = t.symbol?.toLowerCase() || '';
+    const mint = t.mint?.toLowerCase() || '';
+
+    // 🔥 STRICT MATCH
+    return (
+      name.startsWith(query) ||
+      symbol.startsWith(query) ||
+      mint.startsWith(query)
+    );
+  }) || [];
+
+setResults(filtered.slice(0, 6));
+}, [search, data]);
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1280);
     checkMobile();
@@ -68,13 +97,14 @@ export const Navbar: FC = () => {
 
             {/* LEFT */}
             <div className="flex items-center gap-6">
-              <Image src="/images/logo.png" alt="logo" width={140} height={80} />
+             <Link href="/"> <Image src="/images/logo.png" alt="logo" width={140} height={80} /></Link>
 
               {!isMobile && (
                 <div className="flex items-center gap-6">
                   <Link href="/" className="text-white">Home</Link>
+                  <Link href="/pulse" className="text-white">Pulse</Link>
                   <Link href="/#" className="text-white">GitBook</Link>
-                  <Link href="/#" className="text-white">How it Works</Link>
+                  {/* <Link href="/#" className="text-white">How it Works</Link> */}
                 </div>
               )}
             </div>
@@ -82,21 +112,46 @@ export const Navbar: FC = () => {
             {/* RIGHT DESKTOP */}
             {!isMobile && (
               <div className="flex items-center gap-3">
-                <div className="relative w-[360px]">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white opacity-60" />
-                  <input
-                    type="text"
-                    placeholder="Search tokens..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full h-11 pl-10 pr-4 text-sm text-white placeholder-[#ffffff9d] outline-none"
-                    style={{
-                      backgroundColor: '#08172A',
-                      border: '1px solid #34557D',
-                      borderRadius: '12px',
-                    }}
-                  />
-                </div>
+            <div className="relative w-[360px]">
+  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white opacity-60" />
+
+  <input
+    type="text"
+    placeholder="Search tokens..."
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+    className="w-full h-11 pl-10 pr-4 text-sm text-white placeholder-[#ffffff9d] outline-none"
+    style={{
+      backgroundColor: '#08172A',
+      border: '1px solid #34557D',
+      borderRadius: '12px',
+    }}
+  />
+
+  {/* 🔥 DROPDOWN */}
+  {results.length > 0 && (
+    <div className="absolute top-full mt-2 w-full bg-[#08172A] border border-[#34557D] rounded-xl overflow-hidden z-50 shadow-lg">
+      {results.map((token: any) => (
+        <Link
+          key={token.mint}
+          href={`/token/${token.mint}`}
+          onClick={() => setSearch('')}
+          className="flex items-center gap-3 px-4 py-3 hover:bg-[#0d2138] transition"
+        >
+          <img
+            src={token.image || `https://api.dicebear.com/7.x/shapes/svg?seed=${token.mint}`}
+            className="w-8 h-8 rounded-lg object-cover"
+          />
+
+          <div>
+            <p className="text-white text-sm font-semibold">{token.name}</p>
+            <p className="text-xs text-gray-400">${token.symbol}</p>
+          </div>
+        </Link>
+      ))}
+    </div>
+  )}
+</div>
 
                 <Link
                   href="/create"

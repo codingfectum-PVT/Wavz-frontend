@@ -7,31 +7,43 @@ import { motion } from 'framer-motion';
 
 export const HeroSection: FC = () => {
   return (
-    <div className="relative overflow-hidden rounded-2xl"  style={{ height: '420px' }}>
+    <div className="relative overflow-hidden rounded-2xl"  style={{ height: '520px' }}>
 
       {/* VIDEO BACKGROUND — tries mp4, webm, mov in order */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ borderRadius: 'inherit' }}
-      >
-        <source src="/images/mainvideo.mp4" type="video/mp4" />
-        {/* <source src="/images/mainvideo.webm" type="video/webm" />
-        <source src="/images/mainvideo.mov" type="video/quicktime" /> */}
-      </video>
+      {/* DESKTOP VIDEO */}
+<video
+  autoPlay
+  loop
+  muted
+  playsInline
+  className="absolute inset-0 w-full h-full object-cover hidden lg:block"
+  style={{ borderRadius: 'inherit' }}
+>
+  <source src="/images/mainvideo.mp4" type="video/mp4" />
+</video>
+
+{/* MOBILE VIDEO */}
+<video
+  autoPlay
+  loop
+  muted
+  playsInline
+  className="absolute inset-0 w-full h-full object-cover block lg:hidden"
+  style={{ borderRadius: 'inherit' }}
+>
+  <source src="/images/mobilevideo.mp4" type="video/mp4" />
+</video>
 
   
 
       {/* CONTENT — right-aligned */}
-      <div className="relative flex items-center  h-full px-8 md:px-16" style={{justifyContent:'flex-end'}}>
+     <div className="relative flex items-center h-full px-8 md:px-16 justify-start lg:justify-end" >
+
         <motion.div
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6 }}
-          className="max-w-sm "
+          className="max-w-sm self-end lg:self-auto mb-3"
         >
          <h1 className="text-3xl md:text-6xl lg:text-6xl font-semibold text-white mb-4 leading-tight text-left">
           Launch Fair.<br />Trade Clean.

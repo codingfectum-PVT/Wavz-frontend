@@ -377,7 +377,7 @@ export const PriceChart: FC<PriceChartProps> = ({ mint }) => {
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#1f3a59] bg-[#08172A]">
+    <div className="overflow-hidden rounded-2xl  bg-[#08172A]">
       {/* Header with OHLC data - pump.fun style */}
       <div className="flex items-center justify-between border-b border-[#1f3a59] px-3 py-2">
         <div className="flex items-center gap-4">

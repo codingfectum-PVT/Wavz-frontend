@@ -19,12 +19,14 @@ const myFont = localFont({
 })
 
 export const metadata: Metadata = {
-  title: 'Token Launchpad | Create & Trade Meme Tokens on Solana',
+  title: 'Wavz.fun',
   description:
     'Launch your own token with a fair bonding curve. No presale, no team allocation. Just fair and fun.',
   keywords: ['solana', 'token', 'launchpad', 'meme', 'bonding curve', 'defi'],
+    icons: {
+    icon: '/favicon.ico',
+  },
 }
-
 export default function RootLayout({
   children,
 }: {

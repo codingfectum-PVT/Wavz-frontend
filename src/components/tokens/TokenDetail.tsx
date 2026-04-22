@@ -522,7 +522,7 @@ console.log("socialLinks",socialLinks);
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <div className="rounded-2xl border border-[#133252] bg-[#08172A] p-4">
+          <div className="rounded-2xl  bg-[#08172A] p-4">
             <div className="flex flex-col gap-4 lg:flex-row">
               <div className="relative h-52 w-52 overflow-hidden rounded-2xl bg-surface-light flex-shrink-0">
                 <Image src={tokenImage} alt={tokenName} fill className="object-cover" />
@@ -627,7 +627,7 @@ console.log("socialLinks",socialLinks);
 
           <PriceChart mint={mint} />
 
-          <div className="rounded-2xl border border-[#1f3a59] bg-[#08172A] p-3">
+          <div className="rounded-2xl bg-[#08172A] p-3">
             <div className="mb-3 flex items-center gap-4 overflow-x-auto whitespace-nowrap pb-1">
               {[
                 { id: 'transactions', label: 'Transaction' },
@@ -637,7 +637,7 @@ console.log("socialLinks",socialLinks);
                 <button
                   key={tab.id}
                   onClick={() => setActivityTab(tab.id as 'transactions' | 'holders' | 'threads')}
-                  className={`inline-flex min-w-[170px] items-center justify-center gap-2 rounded-[20px] px-4 py-2 text-base font-semibold transition-colors ${
+                  className={`inline-flex min-w-[10px] items-center justify-center gap-2 rounded-[20px] px-4 py-2 text-base font-semibold transition-colors ${
                     activityTab === tab.id ? 'bg-white text-[#050E1A]' : 'bg-[#1a2f46] text-[rgba(255,255,255,0.6)]'
                   }`}
                 >
@@ -681,7 +681,23 @@ console.log("socialLinks",socialLinks);
                   ) : (
                     activityTrades.map((trade: any) => (
                       <div key={trade.signature} className="grid grid-cols-[1.1fr_.8fr_1fr_1.2fr_.9fr_.9fr] px-4 py-2 text-sm">
-                        <span className="text-[#8fc7ff]">{shortenAddress(trade.userAddress || trade.user?.address || '', 4)}</span>
+                      {(() => {
+                      const traderAddress =
+                        trade.walletAddress || trade.userAddress || trade.user?.address;
+
+                      return (
+                        <Link
+                          href={`/profile/${traderAddress}`}
+                          className="flex items-center gap-[5px]"
+                          title={traderAddress}
+                        >
+                          <Image src="/images/duck.png" alt="tg" width={18} height={18}/>
+                          <span className="text-[#528EFC] hover:underline">
+                            {shortenAddress(traderAddress || '', 4)}
+                          </span>
+                        </Link>
+                      );
+                    })()}
                         <span className={trade.isBuy ? 'text-[#45ef56]' : 'text-[#ef4444]'}>{trade.isBuy ? 'Buy' : 'Sell'}</span>
                         <span className="text-[#cdd9e5]">{(Number(trade.solAmount) / 1e9).toFixed(4)}</span>
                         <span className={trade.isBuy ? 'text-[#45ef56]' : 'text-[#ef4444]'}>{formatTokenAmt(trade.tokenAmount)}</span>

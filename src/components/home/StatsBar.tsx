@@ -1,12 +1,12 @@
 'use client';
 
 import { FC, useEffect, useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import { useTokens, Token } from '@/hooks/useApi';
 import { useSocket } from '@/components/providers/SocketProvider';
 import { useSolPrice } from '@/hooks/useSolPrice';
 import toast from 'react-hot-toast';
-
+import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 /* ─── Constants ─────────────────────────────────────── */
 const GRADUATING_MC_MIN = 30000;
 const GRADUATING_MC_MAX = 70000;
@@ -91,7 +91,8 @@ const TokenRow: FC<{ token: Token; variant: Variant }> = ({ token, variant }) =>
       : Math.min(100, Math.round((realMC / GRADUATING_MC_MAX) * 100));
 
   return (
-    <div
+    <Link href={`/token/${token.mint}`} style={{ textDecoration: 'none' }}>
+    <div 
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -143,7 +144,7 @@ const TokenRow: FC<{ token: Token; variant: Variant }> = ({ token, variant }) =>
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              maxWidth: '60%', // 🔥 responsive fix
+              maxWidth: '60%', 
             }}
           >
             {token.name}
@@ -171,10 +172,10 @@ const TokenRow: FC<{ token: Token; variant: Variant }> = ({ token, variant }) =>
           }}
         >
           <div
+              className="h-full rounded-full bg-gradient-to-r from-[#3b82f6] to-[#f59e0b]"
             style={{
               width: `${pct}%`,
               height: '100%',
-              background: BAR[variant],
               transition: 'width 0.5s ease',
             }}
           />
@@ -185,6 +186,7 @@ const TokenRow: FC<{ token: Token; variant: Variant }> = ({ token, variant }) =>
         </p>
       </div>
     </div>
+    </Link>
   );
 };
 
@@ -214,7 +216,7 @@ const Panel: FC<{ title: string; tokens: Token[]; isLoading: boolean; variant: V
     <span>{PANEL_ICON[variant]}</span>
   )}
 
-  <span style={{fontSize:'18px'}}>{title}</span>
+  <span style={{fontSize:'20px'}}>{title}</span>
 </div>
 
     <div

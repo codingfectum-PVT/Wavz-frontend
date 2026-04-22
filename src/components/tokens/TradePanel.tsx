@@ -389,7 +389,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
   const quickSellPercents = [25, 50, 75, 100];
 
   return (
-    <div className="rounded-2xl border border-[#1f3a59] bg-[#08172A] p-4">
+    <div className="rounded-2xl  bg-[#08172A] p-4">
       {/* Mode Toggle */}
       <div className="mb-4 flex rounded-xl bg-[#15263d] p-1">
         <button
@@ -427,14 +427,23 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
             </span>
           </div>
           <div className="relative">
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="1"
-              className="w-full rounded-xl border border-[#2d4867] bg-[#14263d] px-4 py-3 pr-28 text-xl font-semibold text-white placeholder:text-[#89a0b8] focus:outline-none"
-              disabled={isSubmitting}
-            />
+          <input
+            type="number"
+            value={amount}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value.startsWith('-')) return;
+              setAmount(value);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === '-' || e.key === 'e') {
+                e.preventDefault();
+              }
+            }}
+            placeholder="1"
+            className="w-full rounded-xl border border-[#2d4867] bg-[#14263d] px-4 py-3 pr-28 text-xl font-semibold text-white placeholder:text-[#89a0b8] focus:outline-none"
+            disabled={isSubmitting}
+          />
             <div className="absolute right-2 top-1/2 -translate-y-1/2">
               <div className="rounded-xl bg-[#061427] px-3 py-1.5 text-sm font-semibold text-white">
                 {mode === 'buy' ? 'SOL' : token.symbol}
@@ -514,25 +523,25 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
 
         {/* Trade Button - Show for all tradeable tokens */}
         {(!token.graduated || (token.graduated && token.meteoraPool)) && (
-          <button
-            onClick={handleTrade}
-            disabled={isSubmitting || !connected}
-            className={`w-full rounded-xl py-3 text-xl font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-              mode === 'buy'
-                ? 'bg-[#45ef56] text-[#08172A] hover:bg-[#39da4c]'
-                : 'bg-[#ef4444] text-white hover:bg-[#dc2626]'
-            }`}
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Processing...</span>
-            </>
-          ) : !connected ? (
-            <span>Connect Wallet</span>
-          ) : (
-            <span>{mode === 'buy' ? 'Buy' : 'Sell'}</span>
-          )}
+         <button
+  onClick={handleTrade}
+  disabled={isSubmitting || !connected}
+  className={`w-full rounded-xl py-3 text-xl font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+    mode === 'buy'
+      ? 'bg-[#45ef56] text-[#08172A] hover:bg-[#39da4c]'
+      : 'bg-[#ef4444] text-white hover:bg-[#dc2626]'
+  } flex items-center justify-center gap-2`} // 🔥 IMPORTANT
+>
+         {isSubmitting ? (
+  <>
+    <Loader2 className="w-5 h-5 animate-spin" />
+    <span>Processing...</span>
+  </>
+) : !connected ? (
+  <span>Connect Wallet</span>
+) : (
+  <span>{mode === 'buy' ? 'Buy' : 'Sell'}</span>
+)}
         </button>
         )}
       </div>
