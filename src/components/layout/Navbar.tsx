@@ -6,12 +6,14 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Plus, Search, Menu, X, User } from 'lucide-react';
 import { Token, useTokens } from '@/hooks/useApi';
+
 export const Navbar: FC = () => {
   const { publicKey } = useWallet();
 const [results, setResults] = useState<Token[]>([]);
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 const { data } = useTokens({ limit: 100 });
 useEffect(() => {
@@ -156,7 +158,7 @@ setResults(filtered.slice(0, 6));
                 <Link
                   href="/create"
                   className="flex items-center gap-2 px-6 py-3 text-white"
-                  style={{ backgroundColor: '#FE9216', borderRadius: '14px',textAlign:'left',fontSize:'18px',boxShadow:'0 6px 4px 0 rgba(255, 255, 255, 0.50) inset, 0 72px 20px 0 rgba(254, 146, 22, 0.00), 0 46px 18px 0 rgba(254, 146, 22, 0.03), 0 26px 16px 0 rgba(254, 146, 22, 0.11), 0 12px 12px 0 rgba(254, 146, 22, 0.19), 0 3px 6px 0 rgba(254, 146, 22, 0.22)'  }}
+                  style={{ backgroundColor: '#FE9216', borderRadius: '14px',textAlign:'left',fontSize:'18px',boxShadow: "rgba(255, 255, 255, 0.5) 0px 6px 4px 0px inset,rgba(254, 146, 22, 0.15) 0px 0px 12px 0px" }}
                 >
                   <Plus className="w-5 h-5" />
                   <span>Create Token</span>
@@ -189,17 +191,90 @@ setResults(filtered.slice(0, 6));
             )}
 
             {/* MOBILE — hamburger only */}
-            {isMobile && (
-              <button
-                className="text-white p-2"
-                onClick={() => setMenuOpen(!menuOpen)}
-                aria-label="Toggle menu"
-              >
-                {menuOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
-            )}
+           {isMobile && (
+  <div className="flex items-center gap-2">
 
+    {/* 🔍 SEARCH ICON */}
+    <button
+      className="text-white p-2"
+      onClick={() => setMobileSearchOpen(true)}
+    >
+      <Search size={22} />
+    </button>
+
+    {/* ☰ MENU */}
+    <button
+      className="text-white p-2"
+      onClick={() => setMenuOpen(!menuOpen)}
+    >
+      {menuOpen ? <X size={24} /> : <Menu size={24} />}
+    </button>
+
+  </div>
+)}
           </div>
+          {isMobile && mobileSearchOpen && (
+  <div className="fixed inset-0 z-[100] bg-[#08172A] px-4 pt-4">
+
+    {/* TOP BAR */}
+    <div className="flex items-center gap-2 mb-4">
+
+      {/* CLOSE */}
+      <button
+        onClick={() => setMobileSearchOpen(false)}
+        className="text-white"
+      >
+        <X size={24} />
+      </button>
+
+      {/* INPUT */}
+      <div className="flex items-center flex-1 h-12 px-4 rounded-[15px]"
+        style={{
+          backgroundColor: '#0d2138',
+          border: '1px solid #34557D'
+        }}
+      >
+        <Search className="w-5 h-5 text-white opacity-60 mr-2" />
+
+        <input
+          autoFocus
+          type="text"
+          placeholder="Search tokens..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full bg-transparent outline-none text-sm text-white placeholder-[#ffffff9d]"
+        />
+      </div>
+    </div>
+
+    {/* DROPDOWN RESULTS */}
+    {results.length > 0 && (
+      <div className="flex flex-col gap-2">
+        {results.map((token: any) => (
+          <Link
+            key={token.mint}
+            href={`/token/${token.mint}`}
+            onClick={() => {
+              setMobileSearchOpen(false);
+              setSearch('');
+            }}
+            className="flex items-center gap-3 p-3 rounded-xl bg-[#0d2138]"
+          >
+            <img
+              src={token.image || `https://api.dicebear.com/7.x/shapes/svg?seed=${token.mint}`}
+              className="w-8 h-8 rounded-lg object-cover"
+            />
+
+            <div>
+              <p className="text-white text-sm font-semibold">{token.name}</p>
+              <p className="text-xs text-gray-400">${token.symbol}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
           {/* MOBILE MENU */}
           {isMobile && menuOpen && (
@@ -211,22 +286,7 @@ setResults(filtered.slice(0, 6));
               <Link onClick={() => setMenuOpen(false)} href="/#" className="text-white">GitBook</Link>
               <Link onClick={() => setMenuOpen(false)} href="/#" className="text-white">How it Works</Link>
 
-              {/* SEARCH */}
-              <div className="relative w-full mb-4 mt-4">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white opacity-60" />
-                <input
-                  type="text"
-                  placeholder="Search tokens..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full h-11 pl-10 pr-4 text-sm text-white placeholder-[#ffffff9d] outline-none"
-                  style={{
-                    backgroundColor: '#0d2138',
-                    border: '1px solid #34557D',
-                    borderRadius: '12px',
-                  }}
-                />
-              </div>
+              
 
               {/* CREATE — full width */}
               <Link

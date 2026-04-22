@@ -103,10 +103,11 @@ export const TokenList: FC = () => {
       backgroundColor: '#08172A',
       border: '1px solid #34557D',
       borderRadius: '12px',
+      padding:'28px',
     }}
   >
     {/* ICON */}
-    <Search className="w-4 h-4 sm:w-5 sm:h-5 text-white opacity-60 mr-2 flex-shrink-0" />
+    <Search className="w-5 h-5 sm:w-5 sm:h-5 text-white opacity-60 mr-2 flex-shrink-0" />
 
     {/* INPUT */}
     <input
@@ -114,54 +115,69 @@ export const TokenList: FC = () => {
       placeholder="Search tokens..."
       value={search}
       onChange={(e) => setSearch(e.target.value)}
-      className="w-full bg-transparent outline-none text-sm text-white placeholder-[#ffffff9d]"
+      className="w-full bg-transparent outline-none text-lg text-white placeholder-[#ffffff9d]"
     />
   </div>
 </div>
 
         {/* Buttons */}
-       <div className="flex flex-wrap gap-2">
+     <>
+  {/* 🔥 LOCAL SCROLLBAR HIDE (only for this section) */}
+  <style jsx>{`
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+  `}</style>
 
-  {/* Trending */}
-  <button
-    onClick={() => setSortBy('trending')}
-    className={`flex items-center justify-center space-x-2 w-full sm:w-auto px-6 py-3 rounded-[15px] transition-all duration-200 ${
-      sortBy === 'trending'
-        ? 'bg-white text-black'
-        : 'bg-[#182536] text-gray-300 hover:text-white'
-    }`}
+  <div
+    className="flex gap-2 overflow-x-auto whitespace-nowrap sm:flex-wrap no-scrollbar"
+    style={{
+      scrollbarWidth: 'none',     // Firefox
+      msOverflowStyle: 'none',    // IE/Edge
+    }}
   >
-    <Flame className={`w-6 h-6 ${sortBy === 'trending' ? 'text-black' : 'text-gray-400'}`} />
-    <span className="text-[18px]">Trending</span>
-  </button>
 
-  {/* New */}
-  <button
-    onClick={() => setSortBy('newest')}
-    className={`flex items-center justify-center space-x-2 w-full sm:w-auto px-5 py-3 rounded-[15px] transition-all duration-200 ${
-      sortBy === 'newest'
-        ? 'bg-white text-black'
-        : 'bg-[#182536] text-gray-300 hover:text-white'
-    }`}
-  >
-    <Clock className={`w-6 h-6 ${sortBy === 'newest' ? 'text-black' : 'text-gray-400'}`} />
-    <span className="text-[18px]">New</span>
-  </button>
+    {/* Trending */}
+    <button
+      onClick={() => setSortBy('trending')}
+      className={`flex-shrink-0 flex items-center justify-center space-x-2 w-auto sm:w-auto px-6 py-3 rounded-[15px] transition-all duration-200 ${
+        sortBy === 'trending'
+          ? 'bg-white text-black'
+          : 'bg-[#182536] text-gray-300 hover:text-white'
+      }`}
+    >
+      <Flame className={`w-6 h-6 ${sortBy === 'trending' ? 'text-black' : 'text-gray-400'}`} />
+      <span className="text-[18px]">Trending</span>
+    </button>
 
-  {/* Market Cap */}
-  <button
-    onClick={() => setSortBy('marketCap')}
-    className={`flex items-center justify-center space-x-2 w-full sm:w-auto px-5 py-3 rounded-[15px] transition-all duration-200 ${
-      sortBy === 'marketCap'
-        ? 'bg-white text-black'
-        : 'bg-[#182536] text-gray-300 hover:text-white'
-    }`}
-  >
-    <TrendingUp className={`w-6 h-6 ${sortBy === 'marketCap' ? 'text-black' : 'text-gray-400'}`} />
-    <span className="text-[18px]">Market Cap</span>
-  </button>
+    {/* New */}
+    <button
+      onClick={() => setSortBy('newest')}
+      className={`flex-shrink-0 flex items-center justify-center space-x-2 w-auto sm:w-auto px-5 py-3 rounded-[15px] transition-all duration-200 ${
+        sortBy === 'newest'
+          ? 'bg-white text-black'
+          : 'bg-[#182536] text-gray-300 hover:text-white'
+      }`}
+    >
+      <Clock className={`w-6 h-6 ${sortBy === 'newest' ? 'text-black' : 'text-gray-400'}`} />
+      <span className="text-[18px]">New</span>
+    </button>
 
-</div>
+    {/* Market Cap */}
+    <button
+      onClick={() => setSortBy('marketCap')}
+      className={`flex-shrink-0 flex items-center justify-center space-x-2 w-auto sm:w-auto px-5 py-3 rounded-[15px] transition-all duration-200 ${
+        sortBy === 'marketCap'
+          ? 'bg-white text-black'
+          : 'bg-[#182536] text-gray-300 hover:text-white'
+      }`}
+    >
+      <TrendingUp className={`w-6 h-6 ${sortBy === 'marketCap' ? 'text-black' : 'text-gray-400'}`} />
+      <span className="text-[18px]">Market Cap</span>
+    </button>
+
+  </div>
+</>
       </div>
 
       {/* 🔥 NEW: Dynamic Heading */}

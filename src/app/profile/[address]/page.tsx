@@ -211,29 +211,29 @@ export default function ProfilePage() {
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-xl bg-[#182536] p-4">
-              <p className="flex items-center gap-1.5 text-xs text-[#8fa4bb]">
-                <Wallet className="h-3.5 w-3.5 fill-current text-white" />
+              <p className="flex items-center gap-1.5 text-sm text-[#8fa4bb]">
+                <Wallet className="h-3.5 w-3.5 fill-current text-[#8fa4bb]" />
                 <span>Token Owned</span>
               </p>
               <p className="mt-1 text-2xl font-semibold">{holdings.length}</p>
             </div>
             <div className="rounded-xl bg-[#182536] p-4">
-              <p className="flex items-center gap-1.5 text-xs text-[#8fa4bb]">
-                <Image src="/images/coin.png" alt="Coin" width={14} height={14} />
+              <p className="flex items-center gap-1.5 text-sm text-[#8fa4bb]">
+                <Image src="/images/coin.png" alt="Coin" width={15} height={15} />
                 <span>Token Created</span>
               </p>
               <p className="mt-1 text-2xl font-semibold">{profile?._count?.tokensCreated || createdTokens.length || 0}</p>
             </div>
             <div className="rounded-xl bg-[#182536] p-4">
-              <p className="flex items-center gap-1.5 text-xs text-[#8fa4bb]">
-                <TrendingUp className="h-3.5 w-3.5" />
+              <p className="flex items-center gap-1.5 text-sm text-[#8fa4bb]">
+                <TrendingUp className="h-3.5 w-3.5 fill-current text-[#8fa4bb]" />
                 <span>Total Trades</span>
               </p>
               <p className="mt-1 text-2xl font-semibold">{profile?._count?.trades || 0}</p>
             </div>
             <div className="rounded-xl bg-[#182536] p-4">
-              <p className="flex items-center gap-1 text-xs text-[#8fa4bb]">
-                <Heart className="h-3.5 w-3.5 fill-current text-white" />
+              <p className="flex items-center gap-1 text-sm text-[#8fa4bb]">
+                <Heart className="h-3.5 w-3.5 fill-current text-[#8fa4bb]" />
                 <span>Trust Score</span>
               </p>
               <p className="mt-1 text-2xl font-semibold">{profile?.trustScore ?? 50}</p>
@@ -316,7 +316,7 @@ export default function ProfilePage() {
               <Link
                 href="/create"
                 className="inline-flex items-center gap-2 rounded-xl  px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#e68312]"
-                                  style={{ backgroundColor: '#FE9216', borderRadius: '14px',textAlign:'left',fontSize:'18px',boxShadow:'0 6px 4px 0 rgba(255, 255, 255, 0.50) inset, 0 72px 20px 0 rgba(254, 146, 22, 0.00), 0 46px 18px 0 rgba(254, 146, 22, 0.03), 0 26px 16px 0 rgba(254, 146, 22, 0.11), 0 12px 12px 0 rgba(254, 146, 22, 0.19), 0 3px 6px 0 rgba(254, 146, 22, 0.22)'  }}
+                                  style={{ backgroundColor: '#FE9216', borderRadius: '14px',textAlign:'left',fontSize:'18px' ,boxShadow: "rgba(255, 255, 255, 0.5) 0px 6px 4px 0px inset,rgba(254, 146, 22, 0.15) 0px 0px 12px 0px"}}
               >
                 <Plus className="h-4 w-4" />
                 Create Token

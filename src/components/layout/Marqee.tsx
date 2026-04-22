@@ -3,58 +3,69 @@
 import React, { useEffect, useState } from 'react';
 
 interface TickerEvent {
-  id: number;
+  id: string;
   wallet: string;
   action: 'Bought' | 'Sold';
   amount: string;
   token: string;
 }
 
-const chars = '0123456789abcdef';
-const rand = (n: number) =>
-  Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-
-const shortWallet = () => `0x${rand(2)}..${rand(5)}`;
-
-const randomToken = () => {
-  const tokens = ['ASTEROID', 'WAVZ', 'SOLPEPE', 'MOONCAT', 'DEGEN', 'BONK', 'WIF', 'POPCAT'];
-  return tokens[Math.floor(Math.random() * tokens.length)];
-};
-
-const randomAmount = () => (Math.random() * 10 + 0.1).toFixed(3);
-
-let idCounter = 0;
-const generateEvent = (): TickerEvent => ({
-  id: idCounter++,
-  wallet: shortWallet(),
-  action: Math.random() > 0.35 ? 'Bought' : 'Sold',
-  amount: randomAmount(),
-  token: randomToken(),
-});
+const shortAddress = (addr: string) =>
+  addr ? `${addr.slice(0, 4)}..${addr.slice(-4)}` : '----';
 
 export const Marqee = () => {
-  // Start with empty array — populated only on client to avoid SSR mismatch
   const [events, setEvents] = useState<TickerEvent[]>([]);
   const [mounted, setMounted] = useState(false);
 
+  const fetchTrades = async () => {
+    try {
+      const res = await fetch('https://api.wavz.fun/api/trades');
+      const data = await res.json();
+
+      // 🔥 DEBUG (you can remove later)
+      console.log('FIRST TRADE:', data?.trades?.[0]);
+
+      const mapped: TickerEvent[] =
+        data?.trades?.map((t: any) => {
+          const walletRaw =
+            t.userAddress || t.user?.address || '';
+
+          return {
+            id: t.signature,
+
+            wallet: shortAddress(walletRaw),
+
+            action: t.isBuy ? 'Bought' : 'Sold',
+
+            // 🔥 lamports → SOL
+            amount: (Number(t.solAmount) / 1e9).toFixed(3),
+
+            // 🔥 correct token source
+            token: t.token?.symbol || t.token?.name || 'TOKEN',
+          };
+        }) || [];
+
+      setEvents(mapped.slice(0, 20));
+      setMounted(true);
+    } catch (err) {
+      console.error('Error fetching trades:', err);
+    }
+  };
+
+  // initial fetch
   useEffect(() => {
-    // Generate initial events only on client
-    setEvents(Array.from({ length: 20 }, generateEvent));
-    setMounted(true);
+    fetchTrades();
   }, []);
 
+  // auto refresh
   useEffect(() => {
-    if (!mounted) return;
-    const interval = setInterval(() => {
-      setEvents((prev) => [...prev.slice(1), generateEvent()]);
-    }, 2500);
+    const interval = setInterval(fetchTrades, 10000);
     return () => clearInterval(interval);
-  }, [mounted]);
+  }, []);
 
-  // Render nothing on server / before mount to avoid hydration mismatch
   if (!mounted || events.length === 0) {
     return (
-      <div style={{ backgroundColor: '#4284FD', height: '40px', width: '100%' }} />
+      <div style={{ backgroundColor: '#4284FD', height: '60px', width: '100%' }} />
     );
   }
 
@@ -69,7 +80,6 @@ export const Marqee = () => {
         display: 'flex',
         alignItems: 'center',
         width: '100%',
-        zIndex: 10,
       }}
     >
       <div
@@ -97,25 +107,43 @@ export const Marqee = () => {
               flexShrink: 0,
             }}
           >
-            <span style={{ color: '#ffffff', fontWeight: 500,fontSize:'15px' }}>{e.wallet}</span>
-            <span style={{ color: e.action === 'Bought' ? '#4ade80' : '#f87171', fontWeight: 600 }}>
+            {/* WALLET */}
+            <span style={{ color: '#fff', fontWeight: 500, fontSize: '15px' }}>
+              {e.wallet}
+            </span>
+
+            {/* ACTION */}
+            <span
+              style={{
+                color: e.action === 'Bought' ? '#4ade80' : '#f87171',
+                fontWeight: 600,
+              }}
+            >
               {e.action}
             </span>
-            <span style={{ color: '#ffffff' }}>{e.amount} SOL</span>
-            <span style={{ color: '#ffffff', fontWeight: 600 }}>{e.token}</span>
+
+            {/* AMOUNT */}
+            <span style={{ color: '#fff' }}>
+              {e.amount} SOL
+            </span>
+
+            {/* TOKEN */}
+            <span style={{ color: '#fff', fontWeight: 600 }}>
+              {e.token}
+            </span>
           </span>
         ))}
       </div>
 
       <style>{`
         .marquee-track {
-          animation: marquee-scroll 50s linear infinite;
+          animation: marquee-scroll 40s linear infinite;
         }
         .marquee-track:hover {
           animation-play-state: paused;
         }
         @keyframes marquee-scroll {
-          0%   { transform: translateX(0); }
+          0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }
         }
       `}</style>

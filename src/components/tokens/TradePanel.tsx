@@ -458,7 +458,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
                 <button
                   key={value}
                   onClick={() => setAmount(String(value))}
-                  className="rounded-full bg-[#15263d] px-2 py-1 text-[10px] font-semibold text-[#d4e4f5]"
+                  className="rounded-full bg-[#15263d] px-2 py-1 text-[13px] font-semibold text-[#d4e4f5]"
                 >
                   {value} SOL
                 </button>
@@ -474,7 +474,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
               ))}
           <button
             onClick={handleMaxClick}
-            className="rounded-full bg-[#15263d] px-2 py-1 text-[10px] font-semibold text-[#d4e4f5]"
+            className="rounded-full bg-[#15263d] px-2 py-1 text-[13px] font-semibold text-[#d4e4f5]"
           >
             Max
           </button>
@@ -482,15 +482,15 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs text-[#90a6bd]">Slippage Tolerance</span>
-            <span className="text-xs text-[#90a6bd]">{slippage}%</span>
+            <span className="text-sm text-[#90a6bd]">Slippage Tolerance</span>
+            <span className="text-sm text-[#90a6bd]">{slippage}%</span>
           </div>
           <div className="flex items-center space-x-2">
             {[1, 3, 5, 10].map((value) => (
               <button
                 key={value}
                 onClick={() => setSlippage(value)}
-                className={`rounded-full px-2 py-1 text-[10px] font-semibold transition-colors ${
+                className={`rounded-full px-2 py-1 text-[13px] font-semibold transition-colors ${
                   slippage === value
                     ? 'bg-white text-[#08172A]'
                     : 'bg-[#15263d] text-[#8ea3b8] hover:text-white'
@@ -499,7 +499,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
                 {value}%
               </button>
             ))}
-            <button className="rounded-full bg-[#15263d] px-2 py-1 text-[10px] font-semibold text-[#8ea3b8]">Auto</button>
+            {/* <button className="rounded-full bg-[#15263d] px-2 py-1 text-[10px] font-semibold text-[#8ea3b8]">Auto</button> */}
           </div>
         </div>
 

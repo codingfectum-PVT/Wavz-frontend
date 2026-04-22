@@ -205,7 +205,7 @@ export const TokenCard: FC<{ token: Token }> = ({ token }) => {
             <div className="bg-[#182536] rounded-xl p-2 ">
               <p className="text-[13px] text-gray-400">Holders</p>
               <p className="text-white text-sm font-medium flex items-center gap-1">
-                <Users size={12}/>
+                {/* <Users size={12}/> */}
                 {holders}
               </p>
             </div>
