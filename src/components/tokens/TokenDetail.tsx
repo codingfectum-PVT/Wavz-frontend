@@ -419,7 +419,7 @@ console.log("data",data);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-       <AppLoader size={50} text="Loading token..." />
+       <AppLoader size={50}  />
       </div>
     );
   }
@@ -592,7 +592,7 @@ const holders = onChainHolders.length > 0
                       )}
                       {token.graduated && token.meteoraPool && (
                         <a
-                          href={`https://app.meteora.ag/dlmm/${token.meteoraPool}`}
+                          href={`https://devnet.meteora.ag/dlmm/${token.meteoraPool}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center space-x-1 rounded-full bg-blue-500/20 px-2 py-1 text-xs text-blue-400 hover:bg-blue-500/30 transition-colors"

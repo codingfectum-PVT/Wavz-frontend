@@ -40,7 +40,7 @@ export const PriceChart: FC<PriceChartProps> = ({ mint }) => {
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
-  const [timeRange, setTimeRange] = useState<TimeRange>('1m');
+  const [timeRange, setTimeRange] = useState<TimeRange>('5m');
   const [candles, setCandles] = useState<CandleBar[]>([]);
   const [volumes, setVolumes] = useState<VolumeBar[]>([]);
   const [loading, setLoading] = useState(true);

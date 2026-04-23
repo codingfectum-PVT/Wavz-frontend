@@ -351,7 +351,7 @@ export const CommentSection: FC<CommentSectionProps> = ({ mint }) => {
                   className="rounded-lg bg-[#45ef56] px-4 py-2 text-[#08172A] transition-colors hover:bg-[#39da4c] disabled:cursor-not-allowed disabled:bg-[#3d4b5d]"
                 >
                   {submitting ? (
-                    <AppLoader size={50} text="Loading token..." />
+                    <AppLoader size={50}/>
                   ) : (
                     <Send className="w-5 h-5" />
                   )}
@@ -375,7 +375,7 @@ export const CommentSection: FC<CommentSectionProps> = ({ mint }) => {
     return (
       <div className="rounded-xl border border-[#1f3a59] bg-[#08172A] p-6">
         <div className="flex items-center justify-center py-8">
-          <AppLoader size={50} text="Loading token..." />
+          <AppLoader size={50}/>
         </div>
       </div>
     );
@@ -406,7 +406,7 @@ export const CommentSection: FC<CommentSectionProps> = ({ mint }) => {
             className="rounded-lg bg-[#4a5a6f] px-6 py-3 text-white transition-colors hover:bg-[#5b6e86] disabled:cursor-not-allowed disabled:bg-[#3d4b5d]"
           >
             {submitting ? (
-              <AppLoader size={50} text="Loading token..." />
+              <AppLoader size={50}  />
             ) : (
               <Send className="w-5 h-5" />
             )}

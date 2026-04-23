@@ -122,7 +122,7 @@ export const TransactionHistory: FC<TransactionHistoryProps> = ({ mint }) => {
       <div className="bg-surface rounded-xl border border-gray-800 p-4">
         <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
         <div className="flex items-center justify-center py-8">
-          <AppLoader size={50} text="Loading token..." />
+          <AppLoader size={50}  />
         </div>
       </div>
     );

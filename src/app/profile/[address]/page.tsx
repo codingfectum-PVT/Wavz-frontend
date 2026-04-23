@@ -164,7 +164,7 @@ export default function ProfilePage() {
   if (userLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <AppLoader size={50} text="Loading token..." />
+        <AppLoader size={50} />
       </div>
     );
   }
@@ -310,7 +310,7 @@ export default function ProfilePage() {
               className="rounded-xl border border-[#2a4664] bg-[#182536] p-2.5 text-[#c2d0df] hover:bg-[#213248] disabled:opacity-50"
               title="Refresh"
             >
-              {refreshingTokens ? <AppLoader size={50} text="Loading token..." /> : <RefreshCcw className="h-4 w-4" />}
+              {refreshingTokens ? <AppLoader size={50}  /> : <RefreshCcw className="h-4 w-4" />}
             </button>
 
             {isOwnProfile && (
@@ -410,14 +410,14 @@ export default function ProfilePage() {
               className="rounded-xl border border-[#2a4664] bg-[#182536] p-2.5 text-[#c2d0df] hover:bg-[#213248] disabled:opacity-50"
               title="Refresh trades"
             >
-              {refreshingTrades ? <AppLoader size={50} text="Loading token..." /> : <RefreshCcw className="h-4 w-4" />}
+              {refreshingTrades ? <AppLoader size={50}  /> : <RefreshCcw className="h-4 w-4" />}
             </button>
           </div>
 
           <div className="min-h-[330px] rounded-xl ">
             {tradesLoading ? (
               <div className="flex justify-center py-10">
-                <AppLoader size={50} text="Loading token..." />
+                <AppLoader size={50}  />
               </div>
             ) : filteredTrades.length > 0 ? (
               <div className="space-y-3">

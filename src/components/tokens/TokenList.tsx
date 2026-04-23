@@ -199,7 +199,7 @@ export const TokenList: FC = () => {
       {/* Loading */}
       {isLoading && (
         <div className="flex justify-center py-12">
-       <AppLoader size={50} text="Loading token..." />
+       <AppLoader size={50}  />
         </div>
       )}
 

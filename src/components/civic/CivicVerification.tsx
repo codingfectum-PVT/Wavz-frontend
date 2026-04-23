@@ -90,7 +90,7 @@ export const CivicVerification: FC<CivicVerificationProps> = ({
           </>
         ) : isPending ? (
           <>
-           <AppLoader size={50} text="Loading token..." />
+           <AppLoader size={50}  />
             <span className="text-xs text-yellow-500">Pending</span>
           </>
         ) : (
@@ -145,7 +145,7 @@ export const CivicVerification: FC<CivicVerificationProps> = ({
       ) : isPending ? (
         <div className="space-y-4">
           <div className="flex items-center space-x-3 text-yellow-400">
-              <AppLoader size={50} text="Loading token..." />
+              <AppLoader size={50}  />
             <div>
               <p className="font-medium">Verification Pending</p>
               <p className="text-sm text-gray-400">
@@ -177,7 +177,7 @@ export const CivicVerification: FC<CivicVerificationProps> = ({
           >
             {isVerifying ? (
               <>
-                <AppLoader size={50} text="Loading token..." />
+                <AppLoader size={50} />
                 <span>Starting Verification...</span>
               </>
             ) : (

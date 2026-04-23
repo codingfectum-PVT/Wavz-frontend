@@ -2,6 +2,7 @@
 
 import { FC, useEffect, useMemo, useState } from 'react';
 import { Loader2, Search, Zap, Pause, Play } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useTokens, Token } from '@/hooks/useApi';
 import { useSocket } from '@/components/providers/SocketProvider';
 import { useSolPrice } from '@/hooks/useSolPrice';
@@ -65,9 +66,10 @@ const PROGRESS_COLOR: Record<Variant, string> = {
 const TokenRow: FC<{
   token: Token;
   variant: Variant;
+  onOpenToken?: (token: Token) => void;
   onQuickBuy?: (token: Token) => void;
   isBuying?: boolean;
-}> = ({ token, variant, onQuickBuy, isBuying = false }) => {
+}> = ({ token, variant, onOpenToken, onQuickBuy, isBuying = false }) => {
   const { price: solPriceUsd } = useSolPrice();
   const [imgError, setImgError] = useState(false);
 
@@ -78,14 +80,20 @@ const TokenRow: FC<{
     () => getRealMarketCap(token, solPriceUsd),
     [token, solPriceUsd]
   );
+const getBondingProgress = (token: Token) => {
+  const realSol = Number(token.realSolReserves || 0) / 1e9;
+  const threshold = 60;
 
-  const pct =
-    variant === 'listed'
-      ? 100
-      : Math.min(100, Math.round((realMC / GRADUATING_MC_MAX) * 100));
+  if (token.graduated) return 100;
+
+  return Math.max(0, Math.min((realSol / threshold) * 100, 100));
+};
+const pct = getBondingProgress(token);
 
   return (
-  <div style={{
+  <div
+    onClick={() => onOpenToken?.(token)}
+    style={{
   display: 'flex',
   alignItems: 'stretch', // 🔥 important
   gap: 0,
@@ -93,7 +101,9 @@ const TokenRow: FC<{
   borderRadius: 10,
   marginBottom: 6,
   border: '1px solid rgba(255,255,255,0.04)',
-}}>
+  cursor: onOpenToken ? 'pointer' : 'default',
+ }}
+>
      <div style={{
     display: 'flex',
     alignItems: 'center',
@@ -173,14 +183,17 @@ const TokenRow: FC<{
 
         {/* Percentage */}
         <div style={{ textAlign: 'right', fontSize: 10, color: '#34557D', marginTop: 2 }}>
-          {pct}%
+          {pct.toFixed(0)}%
         </div>
       </div>
       </div>
        <div style={{backgroundColor:'#182536',padding:'15px'}}>
       {/* Lightning button */}
       <button
-        onClick={() => onQuickBuy?.(token)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onQuickBuy?.(token);
+        }}
         disabled={!onQuickBuy || isBuying}
         style={{
         width: 36,
@@ -197,7 +210,7 @@ const TokenRow: FC<{
         opacity: isBuying ? 0.7 : 1,
       }}
       >
-        {isBuying ? <AppLoader size={50} text="Loading token..." /> : <Zap size={17} color="#000" fill="#000" />}
+        {isBuying ? <AppLoader size={50} /> : <Zap size={17} color="#000" fill="#000" />}
       </button>
       </div>
     </div>
@@ -222,6 +235,7 @@ const Panel: FC<{
   onBuyAmountChange?: (v: string) => void;
   paused?: boolean;
   onTogglePaused?: () => void;
+  onOpenToken?: (token: Token) => void;
   onQuickBuy?: (token: Token) => void;
   buyingMint?: string | null;
 }> = ({
@@ -234,6 +248,7 @@ const Panel: FC<{
   onBuyAmountChange,
   paused = false,
   onTogglePaused,
+  onOpenToken,
   onQuickBuy,
   buyingMint,
 }) => {
@@ -383,7 +398,7 @@ const Panel: FC<{
       }}>
         {isLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
-            <AppLoader size={50} text="Loading token..." />
+            <AppLoader size={50} />
           </div>
         ) : filtered.length === 0 ? (
           <p style={{ color: '#4a6a8a', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
@@ -395,6 +410,7 @@ const Panel: FC<{
               key={t.mint}
               token={t}
               variant={variant}
+              onOpenToken={onOpenToken}
               onQuickBuy={onQuickBuy}
               isBuying={buyingMint === t.mint}
             />
@@ -407,8 +423,10 @@ const Panel: FC<{
 
 /* ─── Main ───────────────────────────────────────────── */
 export const Pulse: FC = () => {
+  const router = useRouter();
   const [liveNew, setLiveNew] = useState<Token[]>([]);
   const [queuedNew, setQueuedNew] = useState<Token[]>([]);
+  const [liveTokenByMint, setLiveTokenByMint] = useState<Record<string, Partial<Token>>>({});
   const [newPaused, setNewPaused] = useState(false);
   const [buyAmounts, setBuyAmounts] = useState({
     newlyCreated: '0',
@@ -416,13 +434,21 @@ export const Pulse: FC = () => {
     listed: '0',
   });
   const [buyingMint, setBuyingMint] = useState<string | null>(null);
-  const { socket, connected } = useSocket();
+  const { socket, connected, subscribeToFeed, unsubscribeFromFeed } = useSocket();
   const { price: solPriceUsd } = useSolPrice();
   const { buy } = useLaunchpadActions();
 
   const { data: newData } = useTokens({ sort: 'createdAt', order: 'desc', limit:60 });
   const { data: gradData } = useTokens({ sort: 'marketCap', order: 'desc', limit: 60 });
   const { data: listedData } = useTokens({ sort: 'marketCap', order: 'desc', limit: 60, graduated: true });
+
+  useEffect(() => {
+    if (!socket || !connected) return;
+    subscribeToFeed();
+    return () => {
+      unsubscribeFromFeed();
+    };
+  }, [socket, connected, subscribeToFeed, unsubscribeFromFeed]);
 
   useEffect(() => {
     if (!socket || !connected) return;
@@ -439,6 +465,93 @@ export const Pulse: FC = () => {
       socket.off('token:created', handleTokenCreated);
     };
   }, [socket, connected, newPaused]);
+
+  useEffect(() => {
+    if (!socket || !connected) return;
+
+    const toBigInt = (value: unknown): bigint | null => {
+      if (typeof value === 'bigint') return value;
+      if (typeof value === 'number' && Number.isFinite(value)) return BigInt(Math.floor(value));
+      if (typeof value === 'string' && value.trim().length > 0) {
+        try {
+          return BigInt(value);
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    };
+
+    const getMint = (payload: any): string | null => {
+      const mint =
+        payload?.mint ??
+        payload?.tokenMint ??
+        payload?.token?.mint ??
+        payload?.token_address ??
+        payload?.tokenAddress;
+      return typeof mint === 'string' && mint.length > 0 ? mint : null;
+    };
+
+    const applyLivePatch = (payload: any, forceGraduated = false) => {
+      const mint = getMint(payload);
+      if (!mint) return;
+
+      const virtualSol =
+        payload?.virtualSolReserves ??
+        payload?.token?.virtualSolReserves ??
+        payload?.virtual_sol_reserves;
+      const virtualToken =
+        payload?.virtualTokenReserves ??
+        payload?.token?.virtualTokenReserves ??
+        payload?.virtual_token_reserves;
+      const realSol =
+        payload?.realSolReserves ??
+        payload?.token?.realSolReserves ??
+        payload?.real_sol_reserves;
+
+      const patch: Partial<Token> = {};
+      const virtualSolBigInt = toBigInt(virtualSol);
+      const virtualTokenBigInt = toBigInt(virtualToken);
+      const realSolBigInt = toBigInt(realSol);
+
+      if (virtualSolBigInt !== null) patch.virtualSolReserves = virtualSolBigInt;
+      if (virtualTokenBigInt !== null) patch.virtualTokenReserves = virtualTokenBigInt;
+      if (realSolBigInt !== null) patch.realSolReserves = realSolBigInt;
+      if (payload?.graduated !== undefined) patch.graduated = Boolean(payload.graduated);
+      if (forceGraduated) patch.graduated = true;
+
+      if (Object.keys(patch).length === 0) return;
+
+      setLiveTokenByMint((prev) => ({
+        ...prev,
+        [mint]: {
+          ...prev[mint],
+          ...patch,
+        },
+      }));
+
+      setLiveNew((prev) =>
+        prev.map((t) => (t.mint === mint ? { ...t, ...patch } : t))
+      );
+    };
+
+    const handleTradeNew = (payload: any) => applyLivePatch(payload);
+    const handlePriceUpdate = (payload: any) => applyLivePatch(payload);
+    const handleTokenUpdated = (payload: any) => applyLivePatch(payload);
+    const handleGraduated = (payload: any) => applyLivePatch(payload, true);
+
+    socket.on('trade:new', handleTradeNew);
+    socket.on('price:update', handlePriceUpdate);
+    socket.on('token:updated', handleTokenUpdated);
+    socket.on('token:graduated', handleGraduated);
+
+    return () => {
+      socket.off('trade:new', handleTradeNew);
+      socket.off('price:update', handlePriceUpdate);
+      socket.off('token:updated', handleTokenUpdated);
+      socket.off('token:graduated', handleGraduated);
+    };
+  }, [socket, connected]);
 
   const handleToggleNewPause = () => {
     setNewPaused((prev) => {
@@ -469,22 +582,55 @@ export const Pulse: FC = () => {
     }
   };
 
+  const openToken = (token: Token) => {
+    if (!token?.mint) return;
+    router.push(`/token/${token.mint}`);
+  };
+
   const map = new Map<string, Token>();
   [...(newData?.tokens ?? []), ...(gradData?.tokens ?? []), ...(listedData?.tokens ?? []), ...liveNew]
-    .forEach((t) => map.set(t.mint, t));
+    .forEach((t) => {
+      const patch = liveTokenByMint[t.mint];
+      map.set(t.mint, patch ? { ...t, ...patch } : t);
+    });
 
   const all = Array.from(map.values());
+const getBondingProgress = (token: Token) => {
+  const realSol = Number(token.realSolReserves || 0) / 1e9;
+  const threshold = 60;
 
-  const newList = [...all].sort(
-    (a, b) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime()
+  if (token.graduated) return 100;
+
+  return Math.max(0, Math.min((realSol / threshold) * 100, 100));
+};
+
+
+// 🔥 2. NEW TOKENS (<75%)
+const newList = all
+  .filter((t) => {
+    const pct = getBondingProgress(t);
+    return pct < 75 && !t.graduated;
+  })
+  .sort(
+    (a, b) =>
+      new Date(String(b.createdAt)).getTime() -
+      new Date(String(a.createdAt)).getTime()
   );
 
-  const graduating = all.filter((t) => {
-    const mc = getRealMarketCap(t, solPriceUsd);
-    return mc >= GRADUATING_MC_MIN && mc < GRADUATING_MC_MAX && !t.graduated;
-  });
 
-  const listed = all.filter((t) => t.graduated);
+// 🔥 3. GRADUATING TOKENS (>=75% && NOT graduated)
+const graduating = all
+  .filter((t) => {
+    const pct = getBondingProgress(t);
+    return pct >= 75 && !t.graduated;
+  })
+  .sort((a, b) => getBondingProgress(b) - getBondingProgress(a));
+
+
+// 🔥 4. LISTED TOKENS (graduated = true)
+const listed = all
+  .filter((t) => t.graduated === true)
+  .sort((a, b) => getBondingProgress(b) - getBondingProgress(a));
 
   return (
     <div style={{ background: '#060f1a', minHeight: '100vh', padding: '0 0 24px' }}>
@@ -518,6 +664,7 @@ export const Pulse: FC = () => {
           }
           paused={newPaused}
           onTogglePaused={handleToggleNewPause}
+          onOpenToken={openToken}
           onQuickBuy={(token) => handleQuickBuy(token, buyAmounts.newlyCreated)}
           buyingMint={buyingMint}
         />
@@ -531,6 +678,7 @@ export const Pulse: FC = () => {
           onBuyAmountChange={(v) =>
             setBuyAmounts((prev) => ({ ...prev, graduating: v }))
           }
+          onOpenToken={openToken}
           onQuickBuy={(token) => handleQuickBuy(token, buyAmounts.graduating)}
           buyingMint={buyingMint}
         />
@@ -544,6 +692,7 @@ export const Pulse: FC = () => {
           onBuyAmountChange={(v) =>
             setBuyAmounts((prev) => ({ ...prev, listed: v }))
           }
+          onOpenToken={openToken}
           onQuickBuy={(token) => handleQuickBuy(token, buyAmounts.listed)}
           buyingMint={buyingMint}
         />

@@ -627,7 +627,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
         >
                 {isSubmitting ? (
           <>
-            <AppLoader size={50} text="Loading token..." />
+            <AppLoader size={50}  />
             <span>Processing...</span>
           </>
         ) : !connected ? (

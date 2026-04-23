@@ -368,7 +368,7 @@ export const CreateTokenForm: FC = () => {
                 required
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                {nameStatus === 'checking' && <AppLoader size={50} text="Loading token..." />}
+                {nameStatus === 'checking' && <AppLoader size={50}  />}
                 {nameStatus === 'available' && <Check className="h-5 w-5 text-green-500" />}
                 {nameStatus === 'taken' && <X className="h-5 w-5 text-red-500" />}
               </div>
@@ -620,7 +620,7 @@ export const CreateTokenForm: FC = () => {
       >
         {isSubmitting ? (
           <>
-            <AppLoader size={50} text="Loading token..." />
+            <AppLoader size={50}/>
             <span>Creating Token...</span>
           </>
         ) : (
