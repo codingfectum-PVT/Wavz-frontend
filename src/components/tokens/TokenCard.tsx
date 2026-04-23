@@ -40,19 +40,19 @@ export const TokenCard: FC<{ token: Token }> = ({ token }) => {
   // 🔥 ATTRIBUTE PARSER (same as detail)
   const socialFromAttributes = Array.isArray(metadata?.attributes)
     ? metadata.attributes.reduce(
-        (acc: any, item: any) => {
-          const type = String(item?.trait_type || '').toLowerCase().trim();
-          const value = String(item?.value || '').trim();
-          if (!value) return acc;
+      (acc: any, item: any) => {
+        const type = String(item?.trait_type || '').toLowerCase().trim();
+        const value = String(item?.value || '').trim();
+        if (!value) return acc;
 
-          if (type === 'twitter' || type === 'x') acc.twitter = value;
-          if (type === 'telegram' || type === 'tg') acc.telegram = value;
-          if (type === 'website' || type === 'web') acc.website = value;
+        if (type === 'twitter' || type === 'x') acc.twitter = value;
+        if (type === 'telegram' || type === 'tg') acc.telegram = value;
+        if (type === 'website' || type === 'web') acc.website = value;
 
-          return acc;
-        },
-        {}
-      )
+        return acc;
+      },
+      {}
+    )
     : {};
 
   // 🔥 SAME SOCIAL LOGIC (IDENTICAL to TokenDetail)
@@ -108,16 +108,15 @@ export const TokenCard: FC<{ token: Token }> = ({ token }) => {
         {/* 🔥 TOP BANNER */}
         <div className="relative h-[110px] w-full">
           <Image
-            src={token.image || defaultImage}
+            src={token.banner || token.image || defaultImage}
             alt={token.name}
             fill
             className="object-cover"
           />
 
           <div
-            className={`absolute top-3 right-3 flex items-center gap-1 px-2 py-1 text-xs rounded-full ${
-              isPositive ? 'bg-[#09182b] text-[#84FF00]' : 'bg-red-500 text-white'
-            }`}
+            className={`absolute top-3 right-3 flex items-center gap-1 px-2 py-1 text-xs rounded-full ${isPositive ? 'bg-[#09182b] text-[#84FF00]' : 'bg-red-500 text-white'
+              }`}
           >
             {isPositive ? (
               <TrendingUp className="w-3 h-3" />
@@ -164,25 +163,25 @@ export const TokenCard: FC<{ token: Token }> = ({ token }) => {
             </div>
 
             <div className={`flex items-center gap-1`}>
-                              <div className="flex items-center gap-1">
-                  {socialLinks.telegram && (
-                    <a href={normalizeLink(socialLinks.telegram)} target="_blank">
-                      <Image src="/images/tgbg.png" alt="tg" width={25} height={25}/>
-                    </a>
-                  )}
+              <div className="flex items-center gap-1">
+                {socialLinks.telegram && (
+                  <a href={normalizeLink(socialLinks.telegram)} target="_blank">
+                    <Image src="/images/tgbg.png" alt="tg" width={25} height={25} />
+                  </a>
+                )}
 
-                  {socialLinks.twitter && (
-                    <a href={normalizeLink(socialLinks.twitter)} target="_blank">
-                      <Image src="/images/xbg.png" alt="x" width={25} height={25}/>
-                    </a>
-                  )}
+                {socialLinks.twitter && (
+                  <a href={normalizeLink(socialLinks.twitter)} target="_blank">
+                    <Image src="/images/xbg.png" alt="x" width={25} height={25} />
+                  </a>
+                )}
 
-                  {socialLinks.website && (
-                    <a href={normalizeLink(socialLinks.website)} target="_blank">
-                      <Image src="/images/webbg.png" alt="web" width={25} height={25}/>
-                    </a>
-                  )}
-                </div>
+                {socialLinks.website && (
+                  <a href={normalizeLink(socialLinks.website)} target="_blank">
+                    <Image src="/images/webbg.png" alt="web" width={25} height={25} />
+                  </a>
+                )}
+              </div>
             </div>
           </div>
 

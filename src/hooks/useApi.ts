@@ -12,6 +12,7 @@ export interface Token {
   description?: string;
   image?: string;
   uri?: string;
+  banner?: string;
   creatorAddress: string;
   virtualSolReserves: bigint;
   virtualTokenReserves: bigint;

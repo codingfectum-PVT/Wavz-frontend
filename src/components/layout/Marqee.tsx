@@ -59,7 +59,7 @@ export const Marqee = () => {
 
   // auto refresh
   useEffect(() => {
-    const interval = setInterval(fetchTrades, 10000);
+    const interval = setInterval(fetchTrades, 5000);
     return () => clearInterval(interval);
   }, []);
 

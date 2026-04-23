@@ -1,10 +1,11 @@
 'use client';
 
 import { FC, useEffect, useMemo, useState } from 'react';
-import { Loader2, Search, Zap, List, Pause } from 'lucide-react';
+import { Loader2, Search, Zap, Pause, Play } from 'lucide-react';
 import { useTokens, Token } from '@/hooks/useApi';
 import { useSocket } from '@/components/providers/SocketProvider';
 import { useSolPrice } from '@/hooks/useSolPrice';
+import { useLaunchpadActions } from '@/hooks/useProgram';
 import toast from 'react-hot-toast';
 
 /* ─── Constants ─────────────────────────────────────── */
@@ -60,7 +61,12 @@ const PROGRESS_COLOR: Record<Variant, string> = {
 };
 
 /* ─── Token Row ───────────────────────────────────────── */
-const TokenRow: FC<{ token: Token; variant: Variant }> = ({ token, variant }) => {
+const TokenRow: FC<{
+  token: Token;
+  variant: Variant;
+  onQuickBuy?: (token: Token) => void;
+  isBuying?: boolean;
+}> = ({ token, variant, onQuickBuy, isBuying = false }) => {
   const { price: solPriceUsd } = useSolPrice();
   const [imgError, setImgError] = useState(false);
 
@@ -172,7 +178,10 @@ const TokenRow: FC<{ token: Token; variant: Variant }> = ({ token, variant }) =>
       </div>
        <div style={{backgroundColor:'#182536',padding:'15px'}}>
       {/* Lightning button */}
-      <button style={{
+      <button
+        onClick={() => onQuickBuy?.(token)}
+        disabled={!onQuickBuy || isBuying}
+        style={{
         width: 36,
         height: 36,
         borderRadius: 8,
@@ -183,9 +192,11 @@ const TokenRow: FC<{ token: Token; variant: Variant }> = ({ token, variant }) =>
         justifyContent: 'center',
         cursor: 'pointer',
         flexShrink: 0,
-        marginTop:'5px'
-      }}>
-        <Zap size={17} color="#000" fill="#000" />
+        marginTop:'5px',
+        opacity: isBuying ? 0.7 : 1,
+      }}
+      >
+        {isBuying ? <Loader2 size={16} color="#000" className="animate-spin" /> : <Zap size={17} color="#000" fill="#000" />}
       </button>
       </div>
     </div>
@@ -206,7 +217,25 @@ const Panel: FC<{
   isLoading: boolean;
   variant: Variant;
   liveCount?: number;
-}> = ({ title, tokens, isLoading, variant, liveCount = 0 }) => {
+  buyAmount?: string;
+  onBuyAmountChange?: (v: string) => void;
+  paused?: boolean;
+  onTogglePaused?: () => void;
+  onQuickBuy?: (token: Token) => void;
+  buyingMint?: string | null;
+}> = ({
+  title,
+  tokens,
+  isLoading,
+  variant,
+  liveCount = 0,
+  buyAmount = '0',
+  onBuyAmountChange,
+  paused = false,
+  onTogglePaused,
+  onQuickBuy,
+  buyingMint,
+}) => {
   const [search, setSearch] = useState('');
 
   const filtered = tokens.filter(
@@ -303,12 +332,31 @@ const Panel: FC<{
           fontWeight: 600,
         }}>
           <Zap size={12} color="#fff" fill="#fff" />
-          <span style={{fontSize:'13px'}}>{liveCount}</span>
-          <img src="/images/solana.png" alt="meteora" width={15} height={15} style={{marginLeft:'20px'}} />    
+          <input
+            value={buyAmount}
+            onChange={(e) => onBuyAmountChange?.(e.target.value)}
+            type="number"
+            step="0.01"
+            min="0"
+            style={{
+              width: 46,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          />
+          <img src="/images/solana.png" alt="solana" width={15} height={15} />
+          <span style={{ fontSize: 12, color: '#9db7d1' }}>{liveCount}</span>
         </div>
 
         {/* Pause button */}
-        <button style={{
+        <button
+          onClick={onTogglePaused}
+          disabled={!onTogglePaused}
+          style={{
           background: '#182536',
           border: '1px solid rgba(255,255,255,0.07)',
           borderRadius: 8,
@@ -317,9 +365,11 @@ const Panel: FC<{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          cursor: 'pointer',
-        }}>
-          <Pause size={14} color="#fff" />
+          cursor: onTogglePaused ? 'pointer' : 'not-allowed',
+          opacity: onTogglePaused ? 1 : 0.55,
+        }}
+        >
+          {paused ? <Play size={14} color="#fff" /> : <Pause size={14} color="#fff" />}
         </button>
       </div>
 
@@ -339,7 +389,15 @@ const Panel: FC<{
             No tokens found
           </p>
         ) : (
-          filtered.map((t) => <TokenRow key={t.mint} token={t} variant={variant} />)
+          filtered.map((t) => (
+            <TokenRow
+              key={t.mint}
+              token={t}
+              variant={variant}
+              onQuickBuy={onQuickBuy}
+              isBuying={buyingMint === t.mint}
+            />
+          ))
         )}
       </div>
     </div>
@@ -349,8 +407,13 @@ const Panel: FC<{
 /* ─── Main ───────────────────────────────────────────── */
 export const Pulse: FC = () => {
   const [liveNew, setLiveNew] = useState<Token[]>([]);
+  const [queuedNew, setQueuedNew] = useState<Token[]>([]);
+  const [newPaused, setNewPaused] = useState(false);
+  const [buyAmount, setBuyAmount] = useState('0');
+  const [buyingMint, setBuyingMint] = useState<string | null>(null);
   const { socket, connected } = useSocket();
   const { price: solPriceUsd } = useSolPrice();
+  const { buy } = useLaunchpadActions();
 
   const { data: newData } = useTokens({ sort: 'createdAt', order: 'desc', limit:60 });
   const { data: gradData } = useTokens({ sort: 'marketCap', order: 'desc', limit: 60 });
@@ -358,11 +421,48 @@ export const Pulse: FC = () => {
 
   useEffect(() => {
     if (!socket || !connected) return;
-    socket.on('token:created', (t: Token) => {
+    const handleTokenCreated = (t: Token) => {
       toast.success(`New token: ${t.name}`);
+      if (newPaused) {
+        setQueuedNew((prev) => [...prev, t]);
+        return;
+      }
       setLiveNew((prev) => [t, ...prev]);
+    };
+    socket.on('token:created', handleTokenCreated);
+    return () => {
+      socket.off('token:created', handleTokenCreated);
+    };
+  }, [socket, connected, newPaused]);
+
+  const handleToggleNewPause = () => {
+    setNewPaused((prev) => {
+      const next = !prev;
+      if (prev && queuedNew.length > 0) {
+        setLiveNew((current) => [...queuedNew, ...current]);
+        setQueuedNew([]);
+      }
+      return next;
     });
-  }, [socket, connected]);
+  };
+
+  const handleQuickBuy = async (token: Token) => {
+    const sol = Number(buyAmount);
+    if (!Number.isFinite(sol) || sol <= 0) {
+      toast.error('Enter a valid SOL amount');
+      return;
+    }
+    try {
+      setBuyingMint(token.mint);
+      const lamports = Math.floor(sol * 1e9);
+      await buy(token.mint, lamports, 100);
+      toast.success(`Bought ${token.symbol} with ${sol} SOL`);
+    } catch (error: any) {
+      toast.error(error?.message || 'Buy failed');
+    } finally {
+      setBuyingMint(null);
+    }
+  };
 
   const map = new Map<string, Token>();
   [...(newData?.tokens ?? []), ...(gradData?.tokens ?? []), ...(listedData?.tokens ?? []), ...liveNew]
@@ -407,6 +507,12 @@ export const Pulse: FC = () => {
           isLoading={!newData}
           variant="new"
           liveCount={liveNew.length}
+          buyAmount={buyAmount}
+          onBuyAmountChange={setBuyAmount}
+          paused={newPaused}
+          onTogglePaused={handleToggleNewPause}
+          onQuickBuy={handleQuickBuy}
+          buyingMint={buyingMint}
         />
         <Panel
           title="Graduating"
@@ -414,6 +520,10 @@ export const Pulse: FC = () => {
           isLoading={!gradData}
           variant="graduating"
           liveCount={0}
+          buyAmount={buyAmount}
+          onBuyAmountChange={setBuyAmount}
+          onQuickBuy={handleQuickBuy}
+          buyingMint={buyingMint}
         />
         <Panel
           title="Listed on Meteora"
@@ -421,6 +531,10 @@ export const Pulse: FC = () => {
           isLoading={!listedData}
           variant="listed"
           liveCount={0}
+          buyAmount={buyAmount}
+          onBuyAmountChange={setBuyAmount}
+          onQuickBuy={handleQuickBuy}
+          buyingMint={buyingMint}
         />
       </div>
     </div>
