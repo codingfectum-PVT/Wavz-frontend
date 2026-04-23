@@ -520,7 +520,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
                 <button
                   key={value}
                   onClick={() => setAmount(String(value))}
-                  className="rounded-full bg-[#15263d] px-2 py-1 text-[10px] font-semibold text-[#d4e4f5]"
+                  className="rounded-full bg-[#15263d] px-2 py-1 text-[13px] font-semibold text-[#d4e4f5]"
                 >
                   {value} SOL
                 </button>
@@ -529,14 +529,14 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
                 <button
                   key={value}
                   onClick={() => setAmount(((userTokenBalance * value) / 100).toString())}
-                  className="rounded-full bg-[#15263d] px-2 py-1 text-[10px] font-semibold text-[#d4e4f5]"
+                  className="rounded-full bg-[#15263d] px-2 py-1 text-[14px] font-semibold text-[#d4e4f5]"
                 >
                   {value}%
                 </button>
               ))}
           <button
             onClick={handleMaxClick}
-            className="rounded-full bg-[#15263d] px-2 py-1 text-[10px] font-semibold text-[#d4e4f5]"
+            className="rounded-full bg-[#15263d] px-2 py-1 text-[14px] font-semibold text-[#d4e4f5]"
           >
             Max
           </button>
@@ -544,7 +544,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs text-[#90a6bd]">Slippage Tolerance</span>
+            <span className="text-sm text-[#90a6bd]">Slippage Tolerance</span>
             <span className="text-xs text-[#90a6bd]">{slippage}%</span>
           </div>
           <div className="flex items-center space-x-2">
@@ -552,7 +552,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
               <button
                 key={value}
                 onClick={() => setSlippage(value)}
-                className={`rounded-full px-2 py-1 text-[10px] font-semibold transition-colors ${
+                className={`rounded-full px-2 py-1 text-[12px] font-semibold transition-colors ${
                   slippage === value
                     ? 'bg-white text-[#08172A]'
                     : 'bg-[#15263d] text-[#8ea3b8] hover:text-white'
@@ -561,7 +561,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
                 {value}%
               </button>
             ))}
-            <button className="rounded-full bg-[#15263d] px-2 py-1 text-[10px] font-semibold text-[#8ea3b8]">Auto</button>
+            <button className="rounded-full bg-[#15263d] px-2 py-1 text-[12px] font-semibold text-[#8ea3b8]">Auto</button>
           </div>
         </div>
 
@@ -586,24 +586,24 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
         {/* Trade Button - Show for all tradeable tokens */}
         {(!token.graduated || (token.graduated && token.meteoraPool)) && (
          <button
-  onClick={handleTrade}
-  disabled={isSubmitting || !connected}
-  className={`w-full rounded-xl py-3 text-xl font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-    mode === 'buy'
-      ? 'bg-[#45ef56] text-[#08172A] hover:bg-[#39da4c]'
-      : 'bg-[#ef4444] text-white hover:bg-[#dc2626]'
-  } flex items-center justify-center gap-2`} // 🔥 IMPORTANT
->
-         {isSubmitting ? (
-  <>
-    <Loader2 className="w-5 h-5 animate-spin" />
-    <span>Processing...</span>
-  </>
-) : !connected ? (
-  <span>Connect Wallet</span>
-) : (
-  <span>{mode === 'buy' ? 'Buy' : 'Sell'}</span>
-)}
+          onClick={handleTrade}
+          disabled={isSubmitting || !connected}
+          className={`w-full rounded-xl py-3 text-xl font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+            mode === 'buy'
+              ? 'bg-[#45ef56] text-[#08172A] hover:bg-[#39da4c]'
+              : 'bg-[#ef4444] text-white hover:bg-[#dc2626]'
+          } flex items-center justify-center gap-2`} // 🔥 IMPORTANT
+        >
+                {isSubmitting ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Processing...</span>
+          </>
+        ) : !connected ? (
+          <span>Connect Wallet</span>
+        ) : (
+          <span>{mode === 'buy' ? 'Buy' : 'Sell'}</span>
+        )}
         </button>
         )}
       </div>

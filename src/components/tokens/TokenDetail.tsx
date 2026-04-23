@@ -456,7 +456,24 @@ console.log("data",data);
   const tokenName = token.name || 'Unknown Token';
   const tokenSymbol = token.symbol || 'UNK';
   // Prefer on-chain count (always fresh); fall back to DB count if on-chain hasn't loaded yet
-  const holders = onChainHolders.length > 0 ? onChainHolders.length : (token._count?.holders || 0);
+const holders = onChainHolders.length > 0
+  ? onChainHolders.filter((holder: any) => {
+      const bal = Number(holder.balance || holder.amount || 0) / 1e6;
+
+      const pct =
+        token.virtualTokenReserves
+          ? (bal / (Number(token.virtualTokenReserves) / 1e6)) * 100
+          : 0;
+
+      // ❌ remove zero balance
+      if (bal <= 0) return false;
+
+      // ❌ remove liquidity pool
+      if (pct > 80) return false;
+
+      return true;
+    }).length
+  : (token._count?.holders || 0);
   // volume24h in DB is stored in SOL — convert to USD, or use live activityTrades-based calc
   const volume24hUsd = !activityLoading && marketStatsByWindow['24h'].volume > 0
     ? marketStatsByWindow['24h'].volume
@@ -664,7 +681,7 @@ console.log("data",data);
               {[
                 { id: 'transactions', label: 'Transaction' },
                 { id: 'holders', label: 'Holders' },
-                { id: 'threads', label: 'Threads' },
+                { id: 'threads', label: 'Comments' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -679,13 +696,14 @@ console.log("data",data);
                     </svg>
                   )}
                   {tab.id === 'holders' && (
-                    <svg width="14" height="13" viewBox="0 0 16 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-current">
-                      <path d="M14.952 1.36023H1.04803C0.469205 1.36023 0 1.80011 0 2.34276V10.596C0 11.1387 0.46924 11.5786 1.04803 11.5786H5.66288L7.19797 13.2896C7.3971 13.5115 7.69066 13.6397 8.00004 13.6397C8.30941 13.6397 8.60293 13.5116 8.8021 13.2896L10.3372 11.5786H14.952C15.5308 11.5786 16 11.1387 16 10.596V2.34276C16 1.80011 15.5308 1.36023 14.952 1.36023ZM11.3158 9.22049H2.89446C2.60507 9.22049 2.37045 9.00054 2.37045 8.72923C2.37045 8.45791 2.60507 8.23796 2.89446 8.23796H11.3158C11.6052 8.23796 11.8399 8.45791 11.8399 8.72923C11.8399 9.00054 11.6052 9.22049 11.3158 9.22049ZM2.37045 6.50939C2.37045 6.23808 2.60507 6.01812 2.89446 6.01812H9.36094C9.65034 6.01812 9.88496 6.23808 9.88496 6.50939C9.88496 6.7807 9.65034 7.00066 9.36094 7.00066H2.89446C2.60507 7.00066 2.37045 6.7807 2.37045 6.50939ZM13.1055 4.78075H2.89446C2.60507 4.78075 2.37045 4.5608 2.37045 4.28949C2.37045 4.01818 2.60507 3.79822 2.89446 3.79822H13.1055C13.3949 3.79822 13.6295 4.01818 13.6295 4.28949C13.6296 4.5608 13.3949 4.78075 13.1055 4.78075Z" fill="currentColor" />
+                     <svg width="13" height="14" viewBox="0 0 15 17" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-current">
+                      <path d="M6.55515 3.92272L4.52986 0.547436C4.44659 0.408587 4.32877 0.293672 4.18789 0.213887C4.04701 0.134101 3.88786 0.0921651 3.72595 0.0921631H0.469608C0.0902134 0.0921631 -0.131857 0.519019 0.0855258 0.829859L3.34539 5.48689C4.21609 4.67331 5.32351 4.11491 6.55515 3.92272ZM14.5304 0.0921631H11.274C10.9447 0.0921631 10.6394 0.265015 10.4701 0.547436L8.4448 3.92272C9.67644 4.11491 10.7839 4.67331 11.6546 5.4866L14.9144 0.829859C15.1319 0.519019 14.9097 0.0921631 14.5304 0.0921631ZM7.49997 4.77966C4.65232 4.77966 2.34372 7.08826 2.34372 9.93591C2.34372 12.7836 4.65232 15.0921 7.49997 15.0921C10.3476 15.0921 12.6562 12.7836 12.6562 9.93591C12.6562 7.08826 10.3476 4.77966 7.49997 4.77966ZM10.2105 9.38689L9.0993 10.4697L9.36209 11.9996C9.40896 12.2738 9.1201 12.4833 8.8743 12.3538L7.49997 11.6316L6.12595 12.3538C5.87986 12.4841 5.59129 12.2735 5.63816 11.9996L5.90095 10.4697L4.78972 9.38689C4.58992 9.19236 4.70037 8.85281 4.97576 8.81296L6.5118 8.58914L7.19822 7.19695C7.26004 7.07156 7.37957 7.00974 7.49939 7.00974C7.6198 7.00974 7.74021 7.07244 7.80202 7.19695L8.48845 8.58914L10.0245 8.81296C10.2999 8.85281 10.4103 9.19236 10.2105 9.38689Z" fill="currentColor" />
                     </svg>
+                   
                   )}
                   {tab.id === 'threads' && (
-                    <svg width="13" height="14" viewBox="0 0 15 17" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-current">
-                      <path d="M6.55515 3.92272L4.52986 0.547436C4.44659 0.408587 4.32877 0.293672 4.18789 0.213887C4.04701 0.134101 3.88786 0.0921651 3.72595 0.0921631H0.469608C0.0902134 0.0921631 -0.131857 0.519019 0.0855258 0.829859L3.34539 5.48689C4.21609 4.67331 5.32351 4.11491 6.55515 3.92272ZM14.5304 0.0921631H11.274C10.9447 0.0921631 10.6394 0.265015 10.4701 0.547436L8.4448 3.92272C9.67644 4.11491 10.7839 4.67331 11.6546 5.4866L14.9144 0.829859C15.1319 0.519019 14.9097 0.0921631 14.5304 0.0921631ZM7.49997 4.77966C4.65232 4.77966 2.34372 7.08826 2.34372 9.93591C2.34372 12.7836 4.65232 15.0921 7.49997 15.0921C10.3476 15.0921 12.6562 12.7836 12.6562 9.93591C12.6562 7.08826 10.3476 4.77966 7.49997 4.77966ZM10.2105 9.38689L9.0993 10.4697L9.36209 11.9996C9.40896 12.2738 9.1201 12.4833 8.8743 12.3538L7.49997 11.6316L6.12595 12.3538C5.87986 12.4841 5.59129 12.2735 5.63816 11.9996L5.90095 10.4697L4.78972 9.38689C4.58992 9.19236 4.70037 8.85281 4.97576 8.81296L6.5118 8.58914L7.19822 7.19695C7.26004 7.07156 7.37957 7.00974 7.49939 7.00974C7.6198 7.00974 7.74021 7.07244 7.80202 7.19695L8.48845 8.58914L10.0245 8.81296C10.2999 8.85281 10.4103 9.19236 10.2105 9.38689Z" fill="currentColor" />
+                    <svg width="14" height="13" viewBox="0 0 16 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-current">
+                      <path d="M14.952 1.36023H1.04803C0.469205 1.36023 0 1.80011 0 2.34276V10.596C0 11.1387 0.46924 11.5786 1.04803 11.5786H5.66288L7.19797 13.2896C7.3971 13.5115 7.69066 13.6397 8.00004 13.6397C8.30941 13.6397 8.60293 13.5116 8.8021 13.2896L10.3372 11.5786H14.952C15.5308 11.5786 16 11.1387 16 10.596V2.34276C16 1.80011 15.5308 1.36023 14.952 1.36023ZM11.3158 9.22049H2.89446C2.60507 9.22049 2.37045 9.00054 2.37045 8.72923C2.37045 8.45791 2.60507 8.23796 2.89446 8.23796H11.3158C11.6052 8.23796 11.8399 8.45791 11.8399 8.72923C11.8399 9.00054 11.6052 9.22049 11.3158 9.22049ZM2.37045 6.50939C2.37045 6.23808 2.60507 6.01812 2.89446 6.01812H9.36094C9.65034 6.01812 9.88496 6.23808 9.88496 6.50939C9.88496 6.7807 9.65034 7.00066 9.36094 7.00066H2.89446C2.60507 7.00066 2.37045 6.7807 2.37045 6.50939ZM13.1055 4.78075H2.89446C2.60507 4.78075 2.37045 4.5608 2.37045 4.28949C2.37045 4.01818 2.60507 3.79822 2.89446 3.79822H13.1055C13.3949 3.79822 13.6295 4.01818 13.6295 4.28949C13.6296 4.5608 13.3949 4.78075 13.1055 4.78075Z" fill="currentColor" />
                     </svg>
                   )}
                   {tab.label}
@@ -767,21 +785,75 @@ console.log("data",data);
                   ) : holdersList.length === 0 ? (
                     <div className="px-4 py-6 text-sm text-[#8fa4bb]">No holders yet</div>
                   ) : (
-                    holdersList.map((holder: any, idx: number) => {
-                      const addr = holder.address || holder.userAddress || holder.owner || '';
-                      const bal = Number(holder.balance || holder.amount || 0) / 1e6;
-                      const pct = holder.percentage ?? (token.virtualTokenReserves ? (bal / (Number(token.virtualTokenReserves) / 1e6)) * 100 : 0);
-                      return (
-                        <div key={`${addr}-${idx}`} className="grid grid-cols-4 px-4 py-2 text-sm">
-                          <span className="text-[#8fc7ff]">{shortenAddress(addr, 4)}</span>
-                          <span className="text-[#cdd9e5]">{formatNumber(bal)}</span>
-                          <span className="text-[#cdd9e5]">{Number(pct).toFixed(2)}%</span>
-                          <Link href={`/profile/${addr}`} className="text-[#9ab0c7] hover:text-white">
-                            Open
-                          </Link>
-                        </div>
-                      );
-                    })
+                   (() => {
+                  const filtered = holdersList.filter((holder: any) => {
+                    const addr =
+                      holder.address || holder.userAddress || holder.owner || '';
+
+                    const balRaw = Number(holder.balance || holder.amount || 0);
+                    const bal = balRaw / 1e6;
+
+                    const pct =
+                      holder.percentage ??
+                      (token.virtualTokenReserves
+                        ? (bal / (Number(token.virtualTokenReserves) / 1e6)) * 100
+                        : 0);
+
+                    if (bal <= 0) return false;
+
+                    if (pct > 80) return false;
+
+                    return true;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="px-4 py-6 text-sm text-[#8fa4bb]">
+                        No active holders
+                      </div>
+                    );
+                  }
+
+                  return filtered.map((holder: any, idx: number) => {
+                    const addr =
+                      holder.address || holder.userAddress || holder.owner || '';
+
+                    const bal =
+                      Number(holder.balance || holder.amount || 0) / 1e6;
+
+                    const pct =
+                      holder.percentage ??
+                      (token.virtualTokenReserves
+                        ? (bal / (Number(token.virtualTokenReserves) / 1e6)) * 100
+                        : 0);
+
+                    return (
+                      <div
+                        key={`${addr}-${idx}`}
+                        className="grid grid-cols-4 px-4 py-2 text-sm"
+                      >
+                        <span className="text-[#8fc7ff]">
+                          {shortenAddress(addr, 4)}
+                        </span>
+
+                        <span className="text-[#cdd9e5]">
+                          {formatNumber(bal)}
+                        </span>
+
+                        <span className="text-[#cdd9e5]">
+                          {Number(pct).toFixed(2)}%
+                        </span>
+
+                        <Link
+                          href={`/profile/${addr}`}
+                          className="text-[#9ab0c7] hover:text-white"
+                        >
+                          Open
+                        </Link>
+                      </div>
+                    );
+                  });
+                })()
                   )}
                 </div>
                   </div>

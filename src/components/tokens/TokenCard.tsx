@@ -7,11 +7,29 @@ import { TrendingUp, TrendingDown, Users } from 'lucide-react';
 import { formatNumber, formatPrice, formatTimeAgo } from '@/lib/utils';
 import { useSolPrice } from '@/hooks/useSolPrice';
 import type { Token } from '@/hooks/useApi';
-
+import { useOnChainHolders } from '@/hooks/useOnChainHolders';
 export const TokenCard: FC<{ token: Token }> = ({ token }) => {
   const priceChange = token.priceChange24h || 0;
   const isPositive = priceChange >= 0;
-  const holders = token._count?.holders || 0;
+  const { holders: onChainHolders } = useOnChainHolders(token.mint);
+const holders = onChainHolders.length > 0
+  ? onChainHolders.filter((holder: any) => {
+      const bal = Number(holder.balance || holder.amount || 0) / 1e6;
+
+      const pct =
+        token.virtualTokenReserves
+          ? (bal / (Number(token.virtualTokenReserves) / 1e6)) * 100
+          : 0;
+
+      // ❌ remove zero
+      if (bal <= 0) return false;
+
+      // ❌ remove LP (main fix)
+      if (pct > 80) return false;
+
+      return true;
+    }).length
+  : (token._count?.holders || 0);
 
   const defaultImage = `https://api.dicebear.com/7.x/shapes/svg?seed=${token.mint}`;
 
