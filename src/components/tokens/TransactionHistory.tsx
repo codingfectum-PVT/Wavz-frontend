@@ -3,6 +3,7 @@
 import { FC, useState, useEffect, useRef } from 'react';
 import { ArrowUpRight, ArrowDownRight, ExternalLink, Loader2 } from 'lucide-react';
 import { useSocket } from '@/components/providers/SocketProvider';
+import { AppLoader } from '../Apploader';
 
 interface TransactionHistoryProps {
   mint: string;
@@ -121,7 +122,7 @@ export const TransactionHistory: FC<TransactionHistoryProps> = ({ mint }) => {
       <div className="bg-surface rounded-xl border border-gray-800 p-4">
         <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-gray-500" />
+          <AppLoader size={50} text="Loading token..." />
         </div>
       </div>
     );

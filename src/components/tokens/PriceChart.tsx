@@ -4,6 +4,7 @@ import { FC, useState, useEffect, useRef, useCallback } from 'react';
 import { createChart, IChartApi, ISeriesApi, ColorType, UTCTimestamp, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
 import { Loader2 } from 'lucide-react';
 import { useSocket } from '@/components/providers/SocketProvider';
+import { AppLoader } from '../Apploader';
 
 interface PriceChartProps {
   mint: string;
@@ -428,7 +429,7 @@ export const PriceChart: FC<PriceChartProps> = ({ mint }) => {
       <div className="relative h-[400px]">
         {loading && trades.length === 0 && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#08172A]">
-            <Loader2 className="h-8 w-8 animate-spin text-[#8fa4bb]" />
+            <AppLoader size={50} text="Loading token..." />
           </div>
         )}
         {error && (

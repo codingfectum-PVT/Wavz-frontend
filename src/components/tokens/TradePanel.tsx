@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { formatNumber, formatPrice } from '@/lib/utils';
 import { useLaunchpadActions, useProgramAccounts } from '@/hooks/useProgram';
 import { useMeteorSwap } from '@/hooks/useMeteorSwap';
+import { AppLoader } from '../Apploader';
 
 interface Token {
   mint: string;
@@ -596,7 +597,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
         >
                 {isSubmitting ? (
           <>
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <AppLoader size={50} text="Loading token..." />
             <span>Processing...</span>
           </>
         ) : !connected ? (

@@ -7,6 +7,7 @@ import { useSolPrice } from '@/hooks/useSolPrice';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
+import { AppLoader } from '../Apploader';
 /* ─── Constants ─────────────────────────────────────── */
 const GRADUATING_MC_MIN = 30000;
 const GRADUATING_MC_MAX = 70000;
@@ -43,8 +44,8 @@ const palette = (name: string) => PALETTES[name.charCodeAt(0) % PALETTES.length]
 
 const BAR: Record<Variant, string> = {
   new: '#3b82f6',
-  graduating: 'linear-gradient(90deg,#3b82f6,#f97316)',
-  listed: 'linear-gradient(90deg,#a855f7,#f97316)',
+  graduating: 'linear-gradient(90deg,#a855f7,#f97316)',
+  listed: 'linear-gradient(90deg,#3b82f6,#f97316)',
 };
 
 const HEADER: Record<Variant, string> = {
@@ -228,7 +229,7 @@ const Panel: FC<{ title: string; tokens: Token[]; isLoading: boolean; variant: V
       }}
     >
       {isLoading ? (
-        <Loader2 className="animate-spin text-gray-400" />
+        <AppLoader size={50} text="Loading token..." />
       ) : (
         tokens.map((t) => <TokenRow key={t.mint} token={t} variant={variant} />)
       )}

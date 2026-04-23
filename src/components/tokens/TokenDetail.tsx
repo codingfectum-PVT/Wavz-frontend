@@ -19,6 +19,7 @@ import { useSocket } from '@/components/providers/SocketProvider';
 import { useSolPrice } from '@/hooks/useSolPrice';
 import { useOnChainHolders } from '@/hooks/useOnChainHolders';
 import toast from 'react-hot-toast';
+import { AppLoader } from '../Apploader';
 
 interface TokenDetailProps {
   mint: string;
@@ -418,7 +419,7 @@ console.log("data",data);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
+       <AppLoader size={50} text="Loading token..." />
       </div>
     );
   }
