@@ -467,7 +467,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
                 <button
                   key={value}
                   onClick={() => setAmount(((userTokenBalance * value) / 100).toString())}
-                  className="rounded-full bg-[#15263d] px-2 py-1 text-[10px] font-semibold text-[#d4e4f5]"
+                  className="rounded-full bg-[#15263d] px-2 py-1 text-[14px] font-semibold text-[#d4e4f5]"
                 >
                   {value}%
                 </button>

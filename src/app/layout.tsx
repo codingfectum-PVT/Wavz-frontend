@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast'
 import localFont from 'next/font/local'
 import Marqee from '@/components/layout/Marqee'
 import Footer from '@/components/layout/Footer'
+import { AppToaster } from '@/components/AppToaster'
  
 const myFont = localFont({
   src: [
@@ -51,15 +52,8 @@ export default function RootLayout({
  <div style={{ position: 'sticky', bottom: 0, zIndex: 50, display: 'flex', flexDirection: 'column' }}>
             <Footer />
           </div>
-          <Toaster
-            position="bottom-right"
-            toastOptions={{
-              style: {
-                background: '#1a1a1a',
-                color: '#fff',
-                border: '1px solid #333',
-              },
-            }}
+          <AppToaster
+   
           />
         </Providers>
       </body>

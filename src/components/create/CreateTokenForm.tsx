@@ -615,7 +615,7 @@ export const CreateTokenForm: FC = () => {
         type="submit"
         disabled={isSubmitting || !connected}
         className="flex w-full items-center justify-center space-x-2 rounded-2xl  py-3 text-lg font-semibold text-white transition-colors hover:bg-[#e68312] disabled:cursor-not-allowed disabled:opacity-50"
-                          style={{ backgroundColor: '#FE9216', borderRadius: '14px',textAlign:'left',fontSize:'18px',boxShadow:'0 6px 4px 0 rgba(255, 255, 255, 0.50) inset, 0 72px 20px 0 rgba(254, 146, 22, 0.00), 0 46px 18px 0 rgba(254, 146, 22, 0.03), 0 26px 16px 0 rgba(254, 146, 22, 0.11), 0 12px 12px 0 rgba(254, 146, 22, 0.19), 0 3px 6px 0 rgba(254, 146, 22, 0.22)'  }}
+                          style={{ backgroundColor: '#FE9216', borderRadius: '14px',textAlign:'left',fontSize:'18px',boxShadow: "rgba(255, 255, 255, 0.5) 0px 6px 4px 0px inset,rgba(254, 146, 22, 0.15) 0px 0px 12px 0px"  }}
       >
         {isSubmitting ? (
           <>

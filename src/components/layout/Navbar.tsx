@@ -293,7 +293,7 @@ setResults(filtered.slice(0, 6));
                 onClick={() => setMenuOpen(false)}
                 href="/create"
                 className="flex items-center justify-center gap-2 w-full py-3 text-white font-semibold mb-2 mt-2"
-                style={{backgroundColor: '#FE9216', borderRadius: '14px',textAlign:'left',fontSize:'18px',boxShadow:'0 6px 4px 0 rgba(255, 255, 255, 0.50) inset, 0 72px 20px 0 rgba(254, 146, 22, 0.00), 0 46px 18px 0 rgba(254, 146, 22, 0.03), 0 26px 16px 0 rgba(254, 146, 22, 0.11), 0 12px 12px 0 rgba(254, 146, 22, 0.19), 0 3px 6px 0 rgba(254, 146, 22, 0.22)'  }}
+                style={{backgroundColor: '#FE9216', borderRadius: '14px',textAlign:'left',fontSize:'18px',boxShadow: "rgba(255, 255, 255, 0.5) 0px 6px 4px 0px inset,rgba(254, 146, 22, 0.15) 0px 0px 12px 0px"  }}
               >
                 <Plus className="w-5 h-5" />
                 <span>Create Token</span>
