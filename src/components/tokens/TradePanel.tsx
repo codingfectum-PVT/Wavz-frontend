@@ -1,13 +1,13 @@
 'use client';
 
-import { FC, useState, useMemo, useEffect } from 'react';
+import { FC, useState, useMemo, useEffect, useRef } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { Loader2 } from 'lucide-react';
 import { PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync, getAccount } from '@solana/spl-token';
 import toast from 'react-hot-toast';
 import { formatNumber, formatPrice } from '@/lib/utils';
-import { useLaunchpadActions } from '@/hooks/useProgram';
+import { useLaunchpadActions, useProgramAccounts } from '@/hooks/useProgram';
 import { useMeteorSwap } from '@/hooks/useMeteorSwap';
 
 interface Token {
@@ -32,6 +32,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
   const { publicKey, connected } = useWallet();
   const { connection } = useConnection();
   const { buy, sell } = useLaunchpadActions();
+  const accounts = useProgramAccounts();
   const { buyOnMeteora, sellOnMeteora, getQuote, getPoolInfo } = useMeteorSwap();
   
   const [mode, setMode] = useState<TradeMode>('buy');
@@ -44,6 +45,9 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [poolLiquidity, setPoolLiquidity] = useState<{ totalSol: number; totalTokens: number } | null>(null);
   const [poolRefreshKey, setPoolRefreshKey] = useState(0);
+  // Live on-chain reserves for accurate preview
+  const [liveReserves, setLiveReserves] = useState<{ virtualSolReserves: number; virtualTokenReserves: number } | null>(null);
+  const reserveFetchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Check if trading on Meteora
   const isMeteoraTrading = token.graduated && !!token.meteoraPool;
@@ -64,6 +68,30 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
     };
     fetchPoolInfo();
   }, [isMeteoraTrading, token.meteoraPool, getPoolInfo, poolRefreshKey]);
+
+  // Fetch live on-chain bonding curve reserves for accurate "You Receive" preview
+  useEffect(() => {
+    if (isMeteoraTrading) return; // Meteora uses its own quote
+
+    if (reserveFetchRef.current) clearTimeout(reserveFetchRef.current);
+    reserveFetchRef.current = setTimeout(async () => {
+      try {
+        const mintPubkey = new PublicKey(token.mint);
+        const [bondingCurvePda] = accounts.getBondingCurvePda(mintPubkey);
+        const accountInfo = await connection.getAccountInfo(bondingCurvePda);
+        if (!accountInfo) return;
+        // BondingCurve layout: [8 discriminator][32 mint][32 creator][8 virtualSolReserves][8 virtualTokenReserves]...
+        const data = accountInfo.data;
+        const virtualSol = Number(data.readBigUInt64LE(72));  // 8 + 32 + 32
+        const virtualToken = Number(data.readBigUInt64LE(80)); // 72 + 8
+        if (virtualSol > 0 && virtualToken > 0) {
+          setLiveReserves({ virtualSolReserves: virtualSol, virtualTokenReserves: virtualToken });
+        }
+      } catch {
+        // fallback to cached token reserves silently
+      }
+    }, 300);
+  }, [amount, token.mint, isMeteoraTrading, connection, accounts]);
 
   // Fetch real balances
   useEffect(() => {
@@ -163,35 +191,41 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
     // Bonding curve calculation
     if (mode === 'buy') {
       // Calculate tokens out for SOL input (after fee deduction)
-      // dy = y * dx / (x + dx)
+      // dy = y * dx / (x + dx)  — use live on-chain reserves if available
+      const vSol = liveReserves?.virtualSolReserves ?? token.virtualSolReserves;
+      const vToken = liveReserves?.virtualTokenReserves ?? token.virtualTokenReserves;
       const dx = inputAmount * 1e9; // Convert SOL to lamports
       const fee = (dx * PLATFORM_FEE_BPS) / 10000;
       const dxAfterFee = dx - fee;
-      const tokens = (token.virtualTokenReserves * dxAfterFee) / 
-        (token.virtualSolReserves + dxAfterFee);
+      const tokens = (vToken * dxAfterFee) / 
+        (vSol + dxAfterFee);
       return tokens / 1e6; // Convert to token decimals
     } else {
       // Calculate SOL out for token input (fee deducted from output)
-      // dx = x * dy / (y + dy)
+      // dx = x * dy / (y + dy)  — use live on-chain reserves if available
+      const vSol = liveReserves?.virtualSolReserves ?? token.virtualSolReserves;
+      const vToken = liveReserves?.virtualTokenReserves ?? token.virtualTokenReserves;
       const dy = inputAmount * 1e6; // Convert to token decimals
-      const solBeforeFee = (token.virtualSolReserves * dy) / 
-        (token.virtualTokenReserves + dy);
+      const solBeforeFee = (vSol * dy) / 
+        (vToken + dy);
       const fee = (solBeforeFee * PLATFORM_FEE_BPS) / 10000;
       return (solBeforeFee - fee) / 1e9; // Convert lamports to SOL
     }
-  }, [amount, mode, token, isMeteoraTrading, meteoraQuote]);
+  }, [amount, mode, token, isMeteoraTrading, meteoraQuote, liveReserves]);
 
   // Price impact calculation
   const priceImpact = useMemo(() => {
     const inputAmount = parseFloat(amount) || 0;
     if (inputAmount <= 0 || outputAmount <= 0) return 0;
 
-    const currentPrice = token.virtualSolReserves / token.virtualTokenReserves;
+    const vSol = liveReserves?.virtualSolReserves ?? token.virtualSolReserves;
+    const vToken = liveReserves?.virtualTokenReserves ?? token.virtualTokenReserves;
+    const currentPrice = vSol / vToken;
     const newPrice = mode === 'buy'
-      ? (token.virtualSolReserves + inputAmount * 1e9) / 
-        (token.virtualTokenReserves - outputAmount * 1e6)
-      : (token.virtualSolReserves - outputAmount * 1e9) / 
-        (token.virtualTokenReserves + inputAmount * 1e6);
+      ? (vSol + inputAmount * 1e9) / 
+        (vToken - outputAmount * 1e6)
+      : (vSol - outputAmount * 1e9) / 
+        (vToken + inputAmount * 1e6);
     
     return Math.abs((newPrice - currentPrice) / currentPrice) * 100;
   }, [amount, outputAmount, mode, token]);
@@ -289,12 +323,40 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
           }
         } else {
           // Trade on bonding curve
+          let bondingSig: string | undefined;
           if (mode === 'buy') {
             const solAmountLamports = Math.floor(inputAmount * LAMPORTS_PER_SOL);
-            await buy(token.mint, solAmountLamports, slippageBps);
+            bondingSig = await buy(token.mint, solAmountLamports, slippageBps);
           } else {
             const tokenAmountWithDecimals = Math.floor(inputAmount * 1e6);
-            await sell(token.mint, tokenAmountWithDecimals, slippageBps);
+            bondingSig = await sell(token.mint, tokenAmountWithDecimals, slippageBps);
+          }
+
+          // Report bonding curve trade to backend (indexer fallback)
+          if (bondingSig && publicKey) {
+            const solLamports = mode === 'buy'
+              ? Math.floor(inputAmount * LAMPORTS_PER_SOL)
+              : Math.floor(outputAmount * LAMPORTS_PER_SOL);
+            const tokenRaw = mode === 'buy'
+              ? Math.floor(outputAmount * 1e6)
+              : Math.floor(inputAmount * 1e6);
+            const tradePrice = mode === 'buy'
+              ? (Math.floor(inputAmount * LAMPORTS_PER_SOL)) / tokenRaw
+              : (Math.floor(outputAmount * LAMPORTS_PER_SOL)) / tokenRaw;
+
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/trades/bonding`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                signature: bondingSig,
+                mint: token.mint,
+                userAddress: publicKey.toBase58(),
+                isBuy: mode === 'buy',
+                solAmount: solLamports.toString(),
+                tokenAmount: tokenRaw.toString(),
+                price: tradePrice,
+              }),
+            }).catch(err => console.error('Failed to report bonding trade:', err));
           }
         }
 
@@ -458,7 +520,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
                 <button
                   key={value}
                   onClick={() => setAmount(String(value))}
-                  className="rounded-full bg-[#15263d] px-2 py-1 text-[13px] font-semibold text-[#d4e4f5]"
+                  className="rounded-full bg-[#15263d] px-2 py-1 text-[10px] font-semibold text-[#d4e4f5]"
                 >
                   {value} SOL
                 </button>
@@ -467,14 +529,14 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
                 <button
                   key={value}
                   onClick={() => setAmount(((userTokenBalance * value) / 100).toString())}
-                  className="rounded-full bg-[#15263d] px-2 py-1 text-[14px] font-semibold text-[#d4e4f5]"
+                  className="rounded-full bg-[#15263d] px-2 py-1 text-[10px] font-semibold text-[#d4e4f5]"
                 >
                   {value}%
                 </button>
               ))}
           <button
             onClick={handleMaxClick}
-            className="rounded-full bg-[#15263d] px-2 py-1 text-[13px] font-semibold text-[#d4e4f5]"
+            className="rounded-full bg-[#15263d] px-2 py-1 text-[10px] font-semibold text-[#d4e4f5]"
           >
             Max
           </button>
@@ -482,15 +544,15 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm text-[#90a6bd]">Slippage Tolerance</span>
-            <span className="text-sm text-[#90a6bd]">{slippage}%</span>
+            <span className="text-xs text-[#90a6bd]">Slippage Tolerance</span>
+            <span className="text-xs text-[#90a6bd]">{slippage}%</span>
           </div>
           <div className="flex items-center space-x-2">
             {[1, 3, 5, 10].map((value) => (
               <button
                 key={value}
                 onClick={() => setSlippage(value)}
-                className={`rounded-full px-2 py-1 text-[13px] font-semibold transition-colors ${
+                className={`rounded-full px-2 py-1 text-[10px] font-semibold transition-colors ${
                   slippage === value
                     ? 'bg-white text-[#08172A]'
                     : 'bg-[#15263d] text-[#8ea3b8] hover:text-white'
@@ -499,7 +561,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
                 {value}%
               </button>
             ))}
-            {/* <button className="rounded-full bg-[#15263d] px-2 py-1 text-[10px] font-semibold text-[#8ea3b8]">Auto</button> */}
+            <button className="rounded-full bg-[#15263d] px-2 py-1 text-[10px] font-semibold text-[#8ea3b8]">Auto</button>
           </div>
         </div>
 

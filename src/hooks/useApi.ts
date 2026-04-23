@@ -142,6 +142,8 @@ export function useTokenHolders(mint: string, limit = 20) {
       return response.json();
     },
     enabled: !!mint,
+    refetchInterval: 15000, // Refresh every 15 seconds
+    staleTime: 10000,
   });
 }
 

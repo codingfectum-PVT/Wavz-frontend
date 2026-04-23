@@ -18,6 +18,7 @@ import { formatNumber, shortenAddress, formatTimeAgo } from '@/lib/utils';
 import { useSocket } from '@/components/providers/SocketProvider';
 import { useSolPrice } from '@/hooks/useSolPrice';
 import { useTokenHolders } from '@/hooks/useApi';
+import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
 interface TokenDetailProps {
@@ -67,6 +68,7 @@ export const TokenDetail: FC<TokenDetailProps> = ({ mint }) => {
   const { socket, subscribeToToken, unsubscribeFromToken, connected } = useSocket();
   const { price: solPriceUsd } = useSolPrice();
   const { data: holdersData, isLoading: holdersLoading } = useTokenHolders(mint, 50);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     let cancelled = false;
@@ -195,6 +197,9 @@ console.log("data",data);
         }
         return { ...prev, ...updates };
       });
+
+      // Invalidate holders query so the holders list and count refresh from the server
+      queryClient.invalidateQueries({ queryKey: ['token-holders', mint] });
     };
 
     // Handle ready to graduate event
@@ -242,25 +247,36 @@ console.log("data",data);
     };
   }, [socket, mint]);
 
-  // Activity trades for transaction tab
+  // Activity trades for transaction tab — fetch from DB + poll every 15s
   useEffect(() => {
     let cancelled = false;
-    const fetchActivityTrades = async () => {
-      setActivityLoading(true);
+    const fetchActivityTrades = async (isInitial = false) => {
+      if (isInitial) setActivityLoading(true);
       try {
         const res = await fetch(`${API_URL}/api/trades/token/${mint}?limit=50`);
         if (!res.ok) throw new Error('Failed to fetch activity trades');
         const data = await res.json();
-        if (!cancelled) setActivityTrades(Array.isArray(data.trades) ? data.trades : []);
-      } catch {
-        if (!cancelled) setActivityTrades([]);
+        const dbTrades: any[] = Array.isArray(data.trades) ? data.trades : [];
+        if (!cancelled) {
+          // Merge: keep any real-time WS trades not yet in DB, put them first
+          setActivityTrades(prev => {
+            const dbSigs = new Set(dbTrades.map((t: any) => t.signature));
+            const rtOnly = prev.filter((t: any) => !dbSigs.has(t.signature));
+            return [...rtOnly, ...dbTrades].slice(0, 50);
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch activity trades:', err);
+        if (isInitial && !cancelled) setActivityTrades([]);
       } finally {
-        if (!cancelled) setActivityLoading(false);
+        if (isInitial && !cancelled) setActivityLoading(false);
       }
     };
-    fetchActivityTrades();
+    fetchActivityTrades(true);
+    const interval = setInterval(() => fetchActivityTrades(false), 15000);
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, [mint]);
 
@@ -439,7 +455,10 @@ console.log("data",data);
   const tokenName = token.name || 'Unknown Token';
   const tokenSymbol = token.symbol || 'UNK';
   const holders = token._count?.holders || 0;
-  const volume24hUsd = Number(token.volume24h || 0);
+  // volume24h in DB is stored in SOL — convert to USD, or use live activityTrades-based calc
+  const volume24hUsd = !activityLoading && marketStatsByWindow['24h'].volume > 0
+    ? marketStatsByWindow['24h'].volume
+    : Number(token.volume24h || 0) * solPriceUsd;
   const socialFromAttributes = Array.isArray(metadata?.attributes)
     ? metadata.attributes.reduce(
         (acc: { twitter?: string; telegram?: string; website?: string }, item: any) => {
