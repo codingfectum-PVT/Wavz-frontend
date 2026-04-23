@@ -5,6 +5,7 @@ import { useGateway, GatewayStatus } from '@civic/solana-gateway-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Shield, ShieldCheck, ShieldAlert, Loader2, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { AppLoader } from '../Apploader';
 
 interface CivicVerificationProps {
   onVerificationChange?: (verified: boolean) => void;
@@ -89,7 +90,7 @@ export const CivicVerification: FC<CivicVerificationProps> = ({
           </>
         ) : isPending ? (
           <>
-            <Loader2 className="w-4 h-4 text-yellow-500 animate-spin" />
+           <AppLoader size={50} text="Loading token..." />
             <span className="text-xs text-yellow-500">Pending</span>
           </>
         ) : (
@@ -144,7 +145,7 @@ export const CivicVerification: FC<CivicVerificationProps> = ({
       ) : isPending ? (
         <div className="space-y-4">
           <div className="flex items-center space-x-3 text-yellow-400">
-            <Loader2 className="w-8 h-8 animate-spin" />
+              <AppLoader size={50} text="Loading token..." />
             <div>
               <p className="font-medium">Verification Pending</p>
               <p className="text-sm text-gray-400">
@@ -176,7 +177,7 @@ export const CivicVerification: FC<CivicVerificationProps> = ({
           >
             {isVerifying ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <AppLoader size={50} text="Loading token..." />
                 <span>Starting Verification...</span>
               </>
             ) : (

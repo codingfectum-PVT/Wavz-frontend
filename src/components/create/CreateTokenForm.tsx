@@ -7,6 +7,7 @@ import { Upload, Loader2, AlertCircle, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 import { useLaunchpadActions } from '@/hooks/useProgram';
+import { AppLoader } from '../Apploader';
 
 interface FormData {
   name: string;
@@ -367,7 +368,7 @@ export const CreateTokenForm: FC = () => {
                 required
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                {nameStatus === 'checking' && <Loader2 className="h-5 w-5 animate-spin text-gray-400" />}
+                {nameStatus === 'checking' && <AppLoader size={50} text="Loading token..." />}
                 {nameStatus === 'available' && <Check className="h-5 w-5 text-green-500" />}
                 {nameStatus === 'taken' && <X className="h-5 w-5 text-red-500" />}
               </div>
@@ -619,7 +620,7 @@ export const CreateTokenForm: FC = () => {
       >
         {isSubmitting ? (
           <>
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <AppLoader size={50} text="Loading token..." />
             <span>Creating Token...</span>
           </>
         ) : (

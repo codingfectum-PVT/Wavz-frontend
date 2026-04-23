@@ -6,6 +6,7 @@ import { Search, Filter, TrendingUp, Clock, Flame, Loader2 } from 'lucide-react'
 import { useTokens, Token } from '@/hooks/useApi';
 import { useSocket } from '@/components/providers/SocketProvider';
 import toast from 'react-hot-toast';
+import { AppLoader } from '../Apploader';
 
 type SortOption = 'trending' | 'newest' | 'marketCap' | 'volume';
 
@@ -198,7 +199,7 @@ export const TokenList: FC = () => {
       {/* Loading */}
       {isLoading && (
         <div className="flex justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
+       <AppLoader size={50} text="Loading token..." />
         </div>
       )}
 

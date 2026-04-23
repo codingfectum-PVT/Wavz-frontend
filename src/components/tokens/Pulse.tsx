@@ -7,6 +7,7 @@ import { useSocket } from '@/components/providers/SocketProvider';
 import { useSolPrice } from '@/hooks/useSolPrice';
 import { useLaunchpadActions } from '@/hooks/useProgram';
 import toast from 'react-hot-toast';
+import { AppLoader } from '../Apploader';
 
 /* ─── Constants ─────────────────────────────────────── */
 const GRADUATING_MC_MIN = 30000;
@@ -196,7 +197,7 @@ const TokenRow: FC<{
         opacity: isBuying ? 0.7 : 1,
       }}
       >
-        {isBuying ? <Loader2 size={16} color="#000" className="animate-spin" /> : <Zap size={17} color="#000" fill="#000" />}
+        {isBuying ? <AppLoader size={50} text="Loading token..." /> : <Zap size={17} color="#000" fill="#000" />}
       </button>
       </div>
     </div>
@@ -382,7 +383,7 @@ const Panel: FC<{
       }}>
         {isLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
-            <Loader2 className="animate-spin" style={{ color: '#4a6a8a' }} />
+            <AppLoader size={50} text="Loading token..." />
           </div>
         ) : filtered.length === 0 ? (
           <p style={{ color: '#4a6a8a', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
