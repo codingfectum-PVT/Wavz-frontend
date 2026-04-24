@@ -34,7 +34,7 @@ export const SocketProvider: FC<SocketProviderProps> = ({ children }) => {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    console.log('🔌 Connecting to WebSocket server:', WS_URL);
+    // console.log('🔌 Connecting to WebSocket server:', WS_URL);
     
     const newSocket = io(WS_URL, {
       transports: ['websocket', 'polling'],
@@ -44,12 +44,12 @@ export const SocketProvider: FC<SocketProviderProps> = ({ children }) => {
     });
 
     newSocket.on('connect', () => {
-      console.log('🔌 Socket connected:', newSocket.id);
+      // console.log('🔌 Socket connected:', newSocket.id);
       setConnected(true);
     });
 
     newSocket.on('disconnect', () => {
-      console.log('🔌 Socket disconnected');
+      // console.log('🔌 Socket disconnected');
       setConnected(false);
     });
 
@@ -59,7 +59,7 @@ export const SocketProvider: FC<SocketProviderProps> = ({ children }) => {
 
     // Debug: Log all incoming events
     newSocket.onAny((eventName, ...args) => {
-      console.log('📥 Socket event received:', eventName, args.length > 0 ? args[0] : '');
+      // console.log('📥 Socket event received:', eventName, args.length > 0 ? args[0] : '');
     });
 
     setSocket(newSocket);
@@ -71,16 +71,16 @@ export const SocketProvider: FC<SocketProviderProps> = ({ children }) => {
 
   const subscribeToToken = useCallback((mint: string) => {
     if (socket?.connected) {
-      console.log('🔔 Subscribing to token:', mint);
+      // console.log('🔔 Subscribing to token:', mint);
       socket.emit('subscribe:token', mint);
     } else {
-      console.warn('⚠️ Socket not connected, cannot subscribe to token:', mint);
+      // console.warn('⚠️ Socket not connected, cannot subscribe to token:', mint);
     }
   }, [socket]);
 
   const unsubscribeFromToken = useCallback((mint: string) => {
     if (socket?.connected) {
-      console.log('🔕 Unsubscribing from token:', mint);
+      // console.log('🔕 Unsubscribing from token:', mint);
       socket.emit('unsubscribe:token', mint);
     }
   }, [socket]);

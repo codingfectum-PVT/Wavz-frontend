@@ -12,6 +12,16 @@ export const TokenCard: FC<{ token: Token }> = ({ token }) => {
   const priceChange = token.priceChange24h || 0;
   const isPositive = priceChange >= 0;
   const { holders: onChainHolders } = useOnChainHolders(token.mint);
+  useEffect(() => {
+  setIsNew(true);
+
+  const timer = setTimeout(() => {
+    setIsNew(false);
+  }, 800); // animation duration
+
+  return () => clearTimeout(timer);
+}, [token.mint]);
+  const [isNew, setIsNew] = useState(false);
 const holders = onChainHolders.length > 0
   ? onChainHolders.filter((holder: any) => {
       const bal = Number(holder.balance || holder.amount || 0) / 1e6;
@@ -48,7 +58,7 @@ const holders = onChainHolders.length > 0
         const data = await res.json();
         setMetadata(data);
       } catch {
-        console.log('metadata fetch failed');
+        // console.log('metadata fetch failed');
       }
     };
 
@@ -121,7 +131,12 @@ const holders = onChainHolders.length > 0
 
   return (
     <Link href={`/token/${token.mint}`}>
-      <div className="relative rounded-2xl overflow-hidden bg-[#08172A] hover:scale-[1.02] transition-all duration-300 cursor-pointer">
+     <div
+     
+  className={`relative rounded-2xl overflow-hidden bg-[#08172A] 
+  hover:scale-[1.02] transition-all duration-300 cursor-pointer pump-hover
+  ${isNew ? 'pump-animation' : ''}`}
+>
 
         {/* 🔥 TOP BANNER */}
         <div className="relative h-[110px] w-full">

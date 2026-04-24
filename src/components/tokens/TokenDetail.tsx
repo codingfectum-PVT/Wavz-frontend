@@ -96,18 +96,18 @@ export const TokenDetail: FC<TokenDetailProps> = ({ mint }) => {
         const data = await res.json();
         if (cancelled) return;
         setToken(data);
-console.log("data",data);
+// console.log("data",data);
 
         // Fetch metadata from URI if available
         if (data.uri) {
           try {
             const metaRes = await fetch(data.uri);
             const metaData = await metaRes.json();
-            console.log("metaDassta",metaData);
+            // console.log("metaDassta",metaData);
             
             if (!cancelled) setMetadata(metaData);
           } catch (e) {
-            console.log('Could not fetch metadata from URI');
+            // console.log('Could not fetch metadata from URI');
           }
         }
       } catch (err) {
@@ -207,7 +207,7 @@ console.log("data",data);
     // Handle ready to graduate event
     const handleReadyToGraduate = (data: any) => {
       if (data.mint === mint) {
-        console.log('Token ready to graduate!', data);
+        // console.log('Token ready to graduate!', data);
         setIsGraduating(true);
         setToken(prev => prev ? {
           ...prev,
@@ -220,7 +220,7 @@ console.log("data",data);
     // Handle graduation complete event
     const handleGraduated = (data: any) => {
       if (data.mint === mint) {
-        console.log('Token graduated!', data);
+        // console.log('Token graduated!', data);
         setIsGraduating(false);
         setToken(prev => prev ? { 
           ...prev, 
@@ -313,7 +313,7 @@ console.log("data",data);
         const pricePerToken = parseFloat(activeBin.price) / 1000;
         setMeteoraPrice(pricePerToken);
         
-        console.log('Meteora price fetched:', pricePerToken);
+        // console.log('Meteora price fetched:', pricePerToken);
       } catch (err) {
         console.error('Failed to fetch Meteora price:', err);
       }
@@ -448,7 +448,7 @@ console.log("data",data);
 
   // Calculate graduation progress (60 SOL threshold) - show 100% for graduated
   const realSol = Number(token.realSolReserves) / 1e9;
-  const graduationThreshold = 60;
+  const graduationThreshold = 62;
   const graduationProgress = token.graduated ? 100 : Math.min((realSol / graduationThreshold) * 100, 100);
 
   // Use metadata image or fallback
@@ -546,7 +546,29 @@ const holders = onChainHolders.length > 0
   const buyMakers = Math.round(makers * 0.51);
   const sellMakers = Math.max(makers - buyMakers, 0);
   // On-chain holders: owner resolves to the wallet address, balance is raw (6 decimals)
-  const holdersList = onChainHolders;
+const filteredHoldersList = onChainHolders.filter((holder: any) => {
+  const addr = holder.address || holder.userAddress || holder.owner || '';
+
+  const balRaw = Number(holder.balance || holder.amount || 0);
+  const bal = balRaw / 1e6;
+
+  const pct =
+    holder.percentage ??
+    (token.virtualTokenReserves
+      ? (bal / (Number(token.virtualTokenReserves) / 1e6)) * 100
+      : 0);
+
+  // remove empty wallets
+  if (bal <= 0) return false;
+
+  // remove Meteora liquidity pool
+  if (token.meteoraPool && addr === token.meteoraPool) return false;
+
+  // remove LP / reserve wallets
+  if (pct > 20) return false;
+
+  return true;
+});
   const formatTxnTime = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -771,97 +793,82 @@ const holders = onChainHolders.length > 0
               </div>
             )}
 
-            {activityTab === 'holders' && (
-              <div className="overflow-hidden rounded-xl bg-[#0d2138]">
-                <div className="overflow-x-auto">
-                  <div className="min-w-[520px]">
-                    <div className="grid grid-cols-4 border-b border-[#1e3a57] px-4 py-2 text-xs text-[#8fa4bb]">
-                      <span>Holder</span>
-                      <span>Balance</span>
-                      <span>Share</span>
-                      <span>Profile</span>
-                    </div>
-                <div className="max-h-[280px] overflow-y-auto">
-                  {holdersLoading ? (
-                    <div className="px-4 py-6 text-sm text-[#8fa4bb]">Loading holders...</div>
-                  ) : holdersList.length === 0 ? (
-                    <div className="px-4 py-6 text-sm text-[#8fa4bb]">No holders yet</div>
-                  ) : (
-                   (() => {
-                  const filtered = holdersList.filter((holder: any) => {
-                    const addr =
-                      holder.address || holder.userAddress || holder.owner || '';
+     {activityTab === 'holders' && (
+  <div className="overflow-hidden rounded-xl bg-[#0d2138]">
+    <div className="overflow-x-auto">
+      <div className="min-w-[520px]">
+        
+        {/* HEADER */}
+        <div className="grid grid-cols-4 border-b border-[#1e3a57] px-4 py-2 text-xs text-[#8fa4bb]">
+          <span>Holder</span>
+          <span>Balance</span>
+          <span>Share</span>
+          <span>Profile</span>
+        </div>
 
-                    const balRaw = Number(holder.balance || holder.amount || 0);
-                    const bal = balRaw / 1e6;
+        {/* BODY */}
+        <div className="max-h-[280px] overflow-y-auto">
+          
+          {holdersLoading ? (
+            <div className="px-4 py-6 text-sm text-[#8fa4bb]">
+              Loading holders...
+            </div>
+          ) : filteredHoldersList.length === 0 ? (
+            <div className="px-4 py-6 text-sm text-[#8fa4bb]">
+              No holders yet
+            </div>
+          ) : (
+            filteredHoldersList.map((holder: any, idx: number) => {
+              
+              const addr =
+                holder.address || holder.userAddress || holder.owner || '';
 
-                    const pct =
-                      holder.percentage ??
-                      (token.virtualTokenReserves
-                        ? (bal / (Number(token.virtualTokenReserves) / 1e6)) * 100
-                        : 0);
+              const bal =
+                Number(holder.balance || holder.amount || 0) / 1e6;
 
-                    if (bal <= 0) return false;
+              const pct =
+                holder.percentage ??
+                (token.virtualTokenReserves
+                  ? (bal / (Number(token.virtualTokenReserves) / 1e6)) * 100
+                  : 0);
 
-                    if (pct > 80) return false;
+              return (
+                <div
+                  key={`${addr}-${idx}`}
+                  className="grid grid-cols-4 px-4 py-2 text-sm"
+                >
+                  {/* HOLDER */}
+                  <span className="text-[#8fc7ff]">
+                    {shortenAddress(addr, 4)}
+                  </span>
 
-                    return true;
-                  });
+                  {/* BALANCE */}
+                  <span className="text-[#cdd9e5]">
+                    {formatNumber(bal)}
+                  </span>
 
-                  if (filtered.length === 0) {
-                    return (
-                      <div className="px-4 py-6 text-sm text-[#8fa4bb]">
-                        No active holders
-                      </div>
-                    );
-                  }
+                  {/* SHARE */}
+                  <span className="text-[#cdd9e5]">
+                    {pct.toFixed(2)}%
+                  </span>
 
-                  return filtered.map((holder: any, idx: number) => {
-                    const addr =
-                      holder.address || holder.userAddress || holder.owner || '';
-
-                    const bal =
-                      Number(holder.balance || holder.amount || 0) / 1e6;
-
-                    const pct =
-                      holder.percentage ??
-                      (token.virtualTokenReserves
-                        ? (bal / (Number(token.virtualTokenReserves) / 1e6)) * 100
-                        : 0);
-
-                    return (
-                      <div
-                        key={`${addr}-${idx}`}
-                        className="grid grid-cols-4 px-4 py-2 text-sm"
-                      >
-                        <span className="text-[#8fc7ff]">
-                          {shortenAddress(addr, 4)}
-                        </span>
-
-                        <span className="text-[#cdd9e5]">
-                          {formatNumber(bal)}
-                        </span>
-
-                        <span className="text-[#cdd9e5]">
-                          {Number(pct).toFixed(2)}%
-                        </span>
-
-                        <Link
-                          href={`/profile/${addr}`}
-                          className="text-[#9ab0c7] hover:text-white"
-                        >
-                          Open
-                        </Link>
-                      </div>
-                    );
-                  });
-                })()
-                  )}
+                  {/* PROFILE */}
+                  <Link
+                    href={`/profile/${addr}`}
+                    className="text-[#9ab0c7] hover:text-white"
+                  >
+                    Open
+                  </Link>
                 </div>
-                  </div>
-                </div>
-              </div>
-            )}
+              );
+            })
+          )}
+        </div>
+
+      </div>
+    </div>
+  </div>
+)}
 
             {activityTab === 'threads' && (
               <div className="rounded-xl bg-[#0d2138] p-2">

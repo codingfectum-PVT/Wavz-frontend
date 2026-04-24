@@ -42,7 +42,7 @@ async function confirmTransactionPolling(
         if (status.value.err) {
           throw new Error(`Transaction failed: ${JSON.stringify(status.value.err)}`);
         }
-        console.log(`Transaction confirmed at attempt ${i + 1}`);
+        // console.log(`Transaction confirmed at attempt ${i + 1}`);
         return true;
       }
       
@@ -203,7 +203,7 @@ export function useLaunchpadActions() {
             ? JSON.parse(data.keypair) as number[]
             : data.keypair;
           mintKeypair = Keypair.fromSecretKey(Uint8Array.from(secretKey));
-          console.log(`Using vanity address: ${mintKeypair.publicKey.toBase58()}`);
+          // console.log(`Using vanity address: ${mintKeypair.publicKey.toBase58()}`);
         } else {
           throw new Error('No vanity keypair available');
         }
@@ -292,7 +292,7 @@ export function useLaunchpadActions() {
       // If transaction was already processed, it means it succeeded
       if (error?.message?.includes('already been processed') || 
           error?.message?.includes('AlreadyProcessed')) {
-        console.log('Transaction already processed - token created successfully');
+        // console.log('Transaction already processed - token created successfully');
         return { tx: 'already_processed', mint: mint.toBase58() };
       }
       throw error;
@@ -304,7 +304,7 @@ export function useLaunchpadActions() {
       throw new Error('Wallet not connected');
     }
 
-    console.log('Buy called with:', { mint, solAmount, slippageBps });
+    // console.log('Buy called with:', { mint, solAmount, slippageBps });
 
     const userPubkey = provider.wallet.publicKey;
     const [walletProfilePda] = accounts.getWalletProfilePda(userPubkey);
@@ -312,20 +312,20 @@ export function useLaunchpadActions() {
     const [configPda] = accounts.getConfigPda();
     const [bondingCurvePda] = accounts.getBondingCurvePda(mintPubkey);
 
-    console.log('Accounts:', { 
-      config: configPda.toBase58(), 
-      bondingCurve: bondingCurvePda.toBase58(),
-      mint: mintPubkey.toBase58(),
-      walletProfile: walletProfilePda.toBase58(),
-      user: userPubkey.toBase58()
-    });
+    // console.log('Accounts:', { 
+    //   config: configPda.toBase58(), 
+    //   bondingCurve: bondingCurvePda.toBase58(),
+    //   mint: mintPubkey.toBase58(),
+    //   walletProfile: walletProfilePda.toBase58(),
+    //   user: userPubkey.toBase58()
+    // });
 
     // Fetch config first to get fee info
-    console.log('Fetching config from:', configPda.toBase58());
+    // console.log('Fetching config from:', configPda.toBase58());
     let config;
     try {
       config = await (program.account as any).launchpadConfig.fetch(configPda) as any;
-      console.log('Config fetched:', config);
+      // console.log('Config fetched:', config);
     } catch (e) {
       console.error('Failed to fetch config:', e);
       throw new Error('Config not found. Is the program initialized?');
@@ -339,7 +339,7 @@ export function useLaunchpadActions() {
         break;
       } catch (e) {
         if (attempt === 9) throw new Error('Bonding curve not found. Token may not be confirmed yet.');
-        console.log(`Bonding curve not ready, retrying (${attempt + 1}/10)...`);
+        // console.log(`Bonding curve not ready, retrying (${attempt + 1}/10)...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
@@ -369,12 +369,12 @@ export function useLaunchpadActions() {
       userPubkey
     );
 
-    console.log('Token accounts computed:', {
-      bondingCurveTokenAccount: bondingCurveTokenAccount.toBase58(),
-      userTokenAccount: userTokenAccount.toBase58(),
-    });
+    // console.log('Token accounts computed:', {
+    //   bondingCurveTokenAccount: bondingCurveTokenAccount.toBase58(),
+    //   userTokenAccount: userTokenAccount.toBase58(),
+    // });
 
-    console.log('Building buy transaction...');
+    // console.log('Building buy transaction...');
     
     // Build transaction manually (like createToken) to avoid wallet adapter issues with .rpc()
     try {
@@ -410,16 +410,16 @@ export function useLaunchpadActions() {
         skipPreflight: true,
       });
 
-      console.log('Transaction sent:', tx);
+      // console.log('Transaction sent:', tx);
       await confirmTransactionPolling(connection, tx, blockhash, lastValidBlockHeight);
-      console.log('Buy transaction confirmed:', tx);
+      // console.log('Buy transaction confirmed:', tx);
       
       return tx;
     } catch (error: any) {
       // Handle "already processed" as success - it means the tx went through
       if (error?.message?.includes('already been processed') || 
           error?.message?.includes('AlreadyProcessed')) {
-        console.log('Transaction already processed - treating as success');
+        // console.log('Transaction already processed - treating as success');
         return 'already_processed';
       }
       throw error;

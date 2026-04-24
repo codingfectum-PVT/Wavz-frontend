@@ -73,7 +73,7 @@ export function useMeteorSwap() {
       throw new Error('Wallet not connected');
     }
 
-    console.log('Meteora Buy:', { poolAddress, tokenMint, solAmount, slippageBps });
+    // console.log('Meteora Buy:', { poolAddress, tokenMint, solAmount, slippageBps });
 
     const poolPubkey = new PublicKey(poolAddress);
     const mintPubkey = new PublicKey(tokenMint);
@@ -91,7 +91,7 @@ export function useMeteorSwap() {
         // Try getBinArrays() method
         binArrays = await (dlmm as any).getBinArrays() || [];
       } catch (e) {
-        console.log('getBinArrays failed, trying alternative');
+        // console.log('getBinArrays failed, trying alternative');
       }
     }
     
@@ -103,14 +103,14 @@ export function useMeteorSwap() {
         const binArrayAccounts = await (dlmm as any).getBinArrayForSwap(true, 50);
         if (binArrayAccounts && binArrayAccounts.length > 0) {
           binArrays = binArrayAccounts;
-          console.log(`Got ${binArrays.length} bin arrays via getBinArrayForSwap`);
+          // console.log(`Got ${binArrays.length} bin arrays via getBinArrayForSwap`);
         }
       } catch (e) {
-        console.log('getBinArrayForSwap failed:', e);
+        // console.log('getBinArrayForSwap failed:', e);
       }
     }
     
-    console.log(`Bin arrays loaded: ${binArrays.length}`);
+    // console.log(`Bin arrays loaded: ${binArrays.length}`);
 
     // Get user's token account
     const userTokenAccount = getAssociatedTokenAddressSync(mintPubkey, wallet.publicKey);
@@ -123,8 +123,8 @@ export function useMeteorSwap() {
     const isTokenXSol = dlmm.tokenX.publicKey.toBase58() === 'So11111111111111111111111111111111111111112';
     const swapForY = isTokenXSol; // If SOL is tokenX, we swap for Y (the token)
     
-    console.log(`Token X: ${dlmm.tokenX.publicKey.toBase58()}, Token Y: ${dlmm.tokenY.publicKey.toBase58()}`);
-    console.log(`Swapping SOL for token, swapForY: ${swapForY}`);
+    // console.log(`Token X: ${dlmm.tokenX.publicKey.toBase58()}, Token Y: ${dlmm.tokenY.publicKey.toBase58()}`);
+    // console.log(`Swapping SOL for token, swapForY: ${swapForY}`);
 
     // Get swap quote (SOL -> Token)
     const swapAmount = new BN(solAmount);
@@ -135,11 +135,11 @@ export function useMeteorSwap() {
       binArrays
     );
 
-    console.log('Swap quote:', {
-      consumedInAmount: quote.consumedInAmount.toString(),
-      outAmount: quote.outAmount.toString(),
-      fee: quote.fee.toString(),
-    });
+    // console.log('Swap quote:', {
+    //   consumedInAmount: quote.consumedInAmount.toString(),
+    //   outAmount: quote.outAmount.toString(),
+    //   fee: quote.fee.toString(),
+    // });
 
     // Build swap transaction using SDK
     const swapTx = await dlmm.swap({
@@ -183,7 +183,7 @@ export function useMeteorSwap() {
     // Confirm using fast polling
     await confirmTransactionPolling(connection, signature, blockhash, lastValidBlockHeight);
 
-    console.log('Meteora buy completed:', signature);
+    // console.log('Meteora buy completed:', signature);
     return signature;
   }, [connection, wallet]);
 
@@ -200,7 +200,7 @@ export function useMeteorSwap() {
       throw new Error('Wallet not connected');
     }
 
-    console.log('Meteora Sell:', { poolAddress, tokenMint, tokenAmount, slippageBps });
+    // console.log('Meteora Sell:', { poolAddress, tokenMint, tokenAmount, slippageBps });
 
     const poolPubkey = new PublicKey(poolAddress);
 
@@ -216,7 +216,7 @@ export function useMeteorSwap() {
       try {
         binArrays = await (dlmm as any).getBinArrays() || [];
       } catch (e) {
-        console.log('getBinArrays failed, trying alternative');
+        // console.log('getBinArrays failed, trying alternative');
       }
     }
     
@@ -226,21 +226,21 @@ export function useMeteorSwap() {
         const binArrayAccounts = await (dlmm as any).getBinArrayForSwap(false, 50); // false = selling tokens
         if (binArrayAccounts && binArrayAccounts.length > 0) {
           binArrays = binArrayAccounts;
-          console.log(`Got ${binArrays.length} bin arrays via getBinArrayForSwap`);
+          // console.log(`Got ${binArrays.length} bin arrays via getBinArrayForSwap`);
         }
       } catch (e) {
-        console.log('getBinArrayForSwap failed:', e);
+        // console.log('getBinArrayForSwap failed:', e);
       }
     }
     
-    console.log(`Bin arrays loaded: ${binArrays.length}`);
+    // console.log(`Bin arrays loaded: ${binArrays.length}`);
 
     // Determine which token is SOL and which is the token
     const isTokenXSol = dlmm.tokenX.publicKey.toBase58() === 'So11111111111111111111111111111111111111112';
     const swapForY = !isTokenXSol; // If SOL is tokenX, we swap for X (SOL), so swapForY is false
     
-    console.log(`Token X: ${dlmm.tokenX.publicKey.toBase58()}, Token Y: ${dlmm.tokenY.publicKey.toBase58()}`);
-    console.log(`Swapping token for SOL, swapForY: ${swapForY}`);
+    // console.log(`Token X: ${dlmm.tokenX.publicKey.toBase58()}, Token Y: ${dlmm.tokenY.publicKey.toBase58()}`);
+    // console.log(`Swapping token for SOL, swapForY: ${swapForY}`);
 
     // Get swap quote (Token -> SOL)
     const swapAmount = new BN(tokenAmount);
@@ -251,11 +251,11 @@ export function useMeteorSwap() {
       binArrays
     );
 
-    console.log('Swap quote:', {
-      consumedInAmount: quote.consumedInAmount.toString(),
-      outAmount: quote.outAmount.toString(),
-      fee: quote.fee.toString(),
-    });
+    // console.log('Swap quote:', {
+    //   consumedInAmount: quote.consumedInAmount.toString(),
+    //   outAmount: quote.outAmount.toString(),
+    //   fee: quote.fee.toString(),
+    // });
 
     // Build swap transaction using SDK
     const swapTx = await dlmm.swap({
@@ -288,7 +288,7 @@ export function useMeteorSwap() {
     // Confirm using fast polling
     await confirmTransactionPolling(connection, signature, blockhash, lastValidBlockHeight);
 
-    console.log('Meteora sell completed:', signature);
+    // console.log('Meteora sell completed:', signature);
     return signature;
   }, [connection, wallet]);
 
@@ -301,7 +301,7 @@ export function useMeteorSwap() {
     isBuy: boolean
   ): Promise<{ outAmount: number; fee: number; priceImpact: number }> => {
     try {
-      console.log('getQuote called:', { poolAddress, amount, isBuy });
+      // console.log('getQuote called:', { poolAddress, amount, isBuy });
       
       const poolPubkey = new PublicKey(poolAddress);
       const dlmm = await DLMM.create(connection, poolPubkey, { cluster: 'devnet' });
@@ -315,7 +315,7 @@ export function useMeteorSwap() {
         try {
           binArrays = await (dlmm as any).getBinArrays() || [];
         } catch (e) {
-          console.log('getBinArrays failed, trying alternative');
+          // console.log('getBinArrays failed, trying alternative');
         }
       }
       
@@ -325,10 +325,10 @@ export function useMeteorSwap() {
           const binArrayAccounts = await (dlmm as any).getBinArrayForSwap(isBuy, 50);
           if (binArrayAccounts && binArrayAccounts.length > 0) {
             binArrays = binArrayAccounts;
-            console.log(`Got ${binArrays.length} bin arrays via getBinArrayForSwap`);
+            // console.log(`Got ${binArrays.length} bin arrays via getBinArrayForSwap`);
           }
         } catch (e) {
-          console.log('getBinArrayForSwap failed:', e);
+          // console.log('getBinArrayForSwap failed:', e);
         }
       }
       
@@ -344,13 +344,13 @@ export function useMeteorSwap() {
       // For sell (Token -> SOL): we want SOL (Y), so swapForY = true if SOL is Y
       const swapForY = isBuy ? isTokenXSol : !isTokenXSol;
       
-      console.log('Swap params:', { 
-        isTokenXSol, 
-        swapForY,
-        tokenX: dlmm.tokenX.publicKey.toBase58().slice(0, 8),
-        tokenY: dlmm.tokenY.publicKey.toBase58().slice(0, 8),
-        amountStr: amount.toString()
-      });
+      // console.log('Swap params:', { 
+      //   isTokenXSol, 
+      //   swapForY,
+      //   tokenX: dlmm.tokenX.publicKey.toBase58().slice(0, 8),
+      //   tokenY: dlmm.tokenY.publicKey.toBase58().slice(0, 8),
+      //   amountStr: amount.toString()
+      // });
       
       // Create BN from string to avoid precision issues with large numbers
       const swapAmount = new BN(amount.toString());
@@ -373,10 +373,10 @@ export function useMeteorSwap() {
         throw quoteError;
       }
 
-      console.log('Quote result:', {
-        outAmount: quote.outAmount.toString(),
-        fee: quote.fee.toString(),
-      });
+      // console.log('Quote result:', {
+      //   outAmount: quote.outAmount.toString(),
+      //   fee: quote.fee.toString(),
+      // });
 
       // Handle large BN values that exceed Number.MAX_SAFE_INTEGER
       const outAmount = quote.outAmount.ltn(Number.MAX_SAFE_INTEGER) 

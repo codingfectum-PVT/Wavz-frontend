@@ -164,9 +164,9 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
           const maxStr = maxRecommended 
             ? ` Max recommended: ${maxRecommended} ${mode === 'buy' ? 'SOL' : token.symbol}`
             : '';
-          setQuoteError(`Insufficient liquidity. Try a smaller amount.${maxStr}`);
+          setQuoteError(`Insufficient liquidity. `);
         } else {
-          setQuoteError('Could not get quote. Try a smaller amount.');
+          setQuoteError('');
         }
       }
     };
@@ -179,41 +179,107 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
   const PLATFORM_FEE_BPS = 100;
 
   // Calculate output based on bonding curve OR Meteora
-  const outputAmount = useMemo(() => {
-    const inputAmount = parseFloat(amount) || 0;
-    if (inputAmount <= 0) return 0;
+const outputAmount = useMemo(() => {
+  const inputAmount = parseFloat(amount) || 0;
+  if (inputAmount <= 0) return 0;
 
-    // Use Meteora quote if trading on graduated token
-    if (isMeteoraTrading && meteoraQuote) {
-      return mode === 'buy' 
-        ? meteoraQuote.outAmount / 1e6  // Token decimals
-        : meteoraQuote.outAmount / LAMPORTS_PER_SOL; // SOL
-    }
+  // 🔥 HANDLE ERROR SAFELY HERE
+// ✅ Meteora success
+if (isMeteoraTrading && meteoraQuote) {
+  return mode === 'buy'
+    ? meteoraQuote.outAmount / 1e6
+    : meteoraQuote.outAmount / LAMPORTS_PER_SOL;
+}
 
-    // Bonding curve calculation
-    if (mode === 'buy') {
-      // Calculate tokens out for SOL input (after fee deduction)
-      // dy = y * dx / (x + dx)  — use live on-chain reserves if available
-      const vSol = liveReserves?.virtualSolReserves ?? token.virtualSolReserves;
-      const vToken = liveReserves?.virtualTokenReserves ?? token.virtualTokenReserves;
-      const dx = inputAmount * 1e9; // Convert SOL to lamports
-      const fee = (dx * PLATFORM_FEE_BPS) / 10000;
-      const dxAfterFee = dx - fee;
-      const tokens = (vToken * dxAfterFee) / 
-        (vSol + dxAfterFee);
-      return tokens / 1e6; // Convert to token decimals
-    } else {
-      // Calculate SOL out for token input (fee deducted from output)
-      // dx = x * dy / (y + dy)  — use live on-chain reserves if available
-      const vSol = liveReserves?.virtualSolReserves ?? token.virtualSolReserves;
-      const vToken = liveReserves?.virtualTokenReserves ?? token.virtualTokenReserves;
-      const dy = inputAmount * 1e6; // Convert to token decimals
-      const solBeforeFee = (vSol * dy) / 
-        (vToken + dy);
-      const fee = (solBeforeFee * PLATFORM_FEE_BPS) / 10000;
-      return (solBeforeFee - fee) / 1e9; // Convert lamports to SOL
-    }
-  }, [amount, mode, token, isMeteoraTrading, meteoraQuote, liveReserves]);
+// ❌ If liquidity error → FORCE 0
+// ✅ Meteora success
+if (isMeteoraTrading && meteoraQuote) {
+  return mode === 'buy'
+    ? meteoraQuote.outAmount / 1e6
+    : meteoraQuote.outAmount / LAMPORTS_PER_SOL;
+}
+
+// ❌ ONLY block SELL on liquidity error
+if (
+  isMeteoraTrading &&
+  mode === 'sell' &&
+  quoteError?.includes('Insufficient liquidity')
+) {
+  return 0;
+}
+
+// 🔥 fallback for others (BUY or other errors)
+if (isMeteoraTrading && !meteoraQuote) {
+  const inputAmount = parseFloat(amount) || 0;
+  if (inputAmount <= 0) return 0;
+
+  if (mode === 'sell') {
+    return inputAmount * token.price;
+  }
+
+  // BUY fallback (optional)
+  if (mode === 'buy') {
+    return inputAmount / token.price;
+  }
+
+  return 0;
+}
+// 🔥 Other errors → allow fallback
+if (isMeteoraTrading && !meteoraQuote) {
+  const inputAmount = parseFloat(amount) || 0;
+  if (inputAmount <= 0) return 0;
+
+  if (mode === 'sell') {
+    return inputAmount * token.price;
+  }
+
+  return 0;
+}
+  // Meteora quote
+// ✅ Meteora success (exact)
+if (isMeteoraTrading && meteoraQuote) {
+  return mode === 'buy'
+    ? meteoraQuote.outAmount / 1e6
+    : meteoraQuote.outAmount / LAMPORTS_PER_SOL;
+}
+
+// 🔥 Meteora failed → fallback estimation
+if (isMeteoraTrading && !meteoraQuote) {
+  const inputAmount = parseFloat(amount) || 0;
+  if (inputAmount <= 0) return 0;
+
+  if (mode === 'sell') {
+    // 👇 IMPORTANT: use current price
+    const estimated = inputAmount * token.price;
+
+    return estimated > 0 ? estimated : 0;
+  }
+
+  return 0;
+}
+
+  // bonding curve logic...
+  if (mode === 'buy') {
+    const vSol = liveReserves?.virtualSolReserves ?? token.virtualSolReserves;
+    const vToken = liveReserves?.virtualTokenReserves ?? token.virtualTokenReserves;
+
+    const dx = inputAmount * 1e9;
+    const fee = (dx * PLATFORM_FEE_BPS) / 10000;
+    const dxAfterFee = dx - fee;
+
+    const tokens = (vToken * dxAfterFee) / (vSol + dxAfterFee);
+    return tokens / 1e6;
+  } else {
+    const vSol = liveReserves?.virtualSolReserves ?? token.virtualSolReserves;
+    const vToken = liveReserves?.virtualTokenReserves ?? token.virtualTokenReserves;
+
+    const dy = inputAmount * 1e6;
+    const solBeforeFee = (vSol * dy) / (vToken + dy);
+    const fee = (solBeforeFee * PLATFORM_FEE_BPS) / 10000;
+
+    return (solBeforeFee - fee) / 1e9;
+  }
+}, [amount, mode, token, isMeteoraTrading, meteoraQuote, liveReserves, quoteError]);
 
   // Price impact calculation
   const priceImpact = useMemo(() => {
@@ -341,7 +407,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
                 if (!res.ok) {
                   console.error('Failed to record trade:', await res.text());
                 } else {
-                  console.log('✅ Meteora trade recorded successfully');
+                  // console.log('✅ Meteora trade recorded successfully');
                 }
               } catch (err) {
                 console.error('Failed to record Meteora trade:', err);
@@ -480,7 +546,23 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
 
   const quickBuyAmounts = [0.1, 0.5, 1, 2];
   const quickSellPercents = [25, 50, 75, 100];
+const formatDisplay = (value: number, mode: 'buy' | 'sell') => {
+  if (!value || value <= 0) return '0.00';
 
+  // SELL → precise (SOL)
+  if (mode === 'sell') {
+    return value.toLocaleString(undefined, {
+      maximumFractionDigits: 8,
+    });
+  }
+
+  // BUY → compact (tokens)
+  if (value >= 1_000_000_000) return (value / 1e9).toFixed(2) + 'B';
+  if (value >= 1_000_000) return (value / 1e6).toFixed(2) + 'M';
+  if (value >= 1_000) return (value / 1e3).toFixed(2) + 'K';
+
+  return value.toFixed(2);
+};
   return (
     <div className="rounded-2xl  bg-[#08172A] p-4">
       {/* Mode Toggle */}
@@ -565,12 +647,12 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
                   {value}%
                 </button>
               ))}
-          <button
+          {/* <button
             onClick={handleMaxClick}
             className="rounded-full bg-[#15263d] px-2 py-1 text-[14px] font-semibold text-[#d4e4f5]"
           >
             Max
-          </button>
+          </button> */}
         </div>
 
         <div>
@@ -592,7 +674,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
                 {value}%
               </button>
             ))}
-            <button className="rounded-full bg-[#15263d] px-2 py-1 text-[12px] font-semibold text-[#8ea3b8]">Auto</button>
+            {/* <button className="rounded-full bg-[#15263d] px-2 py-1 text-[12px] font-semibold text-[#8ea3b8]">Auto</button> */}
           </div>
         </div>
 
@@ -600,7 +682,9 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
           <label className="mb-2 block text-xs text-[#90a6bd]">You Receive</label>
           <div className="rounded-xl bg-[#14263d] px-4 py-3 text-sm">
             <span className="text-sm text-[#c7d9eb]">
-              {outputAmount > 0 ? formatNumber(outputAmount) : '0.00'}
+      <span>
+  {formatDisplay(outputAmount, mode)}
+</span>
             </span>
             <span className="ml-1 text-sm text-[#9fb2c8]">
               {mode === 'buy' ? token.symbol : 'SOL'}

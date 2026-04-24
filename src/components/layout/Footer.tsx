@@ -13,7 +13,14 @@ export const Footer = () => {
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
-
+const navLinks = [
+  { name: 'Home', href: '/' },
+  { name: 'Pulse', href: '/pulse' },
+  { name: 'Gitbook', href: '#' },
+  { name: 'Support', href: '/#' },
+  { name: 'Terms', href: '/#' },
+  { name: 'Privacy', href: '/#' },
+];
   return (
     <footer
       style={{
@@ -44,7 +51,7 @@ export const Footer = () => {
           <span style={{ color: '#34557D', fontSize: '18px' }}>|</span>
 
           {/* Telegram */}
-          <Link href="/#" aria-label="Telegram">
+          <Link href="https://t.me/wavzfunportal" aria-label="Telegram" target='blank'>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path
                 d="M21.944 2.506a1.5 1.5 0 0 0-1.53-.21L2.53 9.607a1.5 1.5 0 0 0 .09 2.79l4.38 1.46 1.67 5.01a1.5 1.5 0 0 0 2.54.49l2.4-2.77 4.7 3.45a1.5 1.5 0 0 0 2.34-1.03l2-15a1.5 1.5 0 0 0-.636-1.498zM10 18l-1.2-3.6 8.2-7.4-7 8.4V18z"
@@ -57,7 +64,7 @@ export const Footer = () => {
           <span style={{ color: '#34557D', fontSize: '18px' }}>|</span>
 
           {/* X (Twitter) */}
-          <Link href="/#" aria-label="X / Twitter">
+          <Link href="https://x.com/wavzfun?s=21" aria-label="X / Twitter" target='blank'>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path
                 d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L2.25 2.25h6.883l4.259 5.631L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"
@@ -78,21 +85,21 @@ export const Footer = () => {
             gap: isMobile ? '16px 20px' : '28px',
           }}
         >
-          {['Home', 'Pulse', 'Gitbook', 'Support', 'Terms', 'Privacy'].map((item) => (
-            <Link
-              key={item}
-              href="/#"
-              style={{
-                color: '#ffffff',
-                fontSize: '14px',
-                // opacity: 0.85,
-                textDecoration: 'none',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {item}
-            </Link>
-          ))}
+       {navLinks.map((item) => (
+  <Link
+    key={item.name}
+    href={item.href}
+    target={item.href.startsWith('http') ? '_blank' : '_self'}
+    style={{
+      color: '#ffffff',
+      fontSize: '14px',
+      textDecoration: 'none',
+      whiteSpace: 'nowrap',
+    }}
+  >
+    {item.name}
+  </Link>
+))}
         </div>
       </div>
     </footer>

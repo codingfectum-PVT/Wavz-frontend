@@ -9,7 +9,7 @@ import { useSolPrice } from '@/hooks/useSolPrice';
 import { useLaunchpadActions } from '@/hooks/useProgram';
 import toast from 'react-hot-toast';
 import { AppLoader } from '../Apploader';
-
+import { useMeteorSwap } from '@/hooks/useMeteorSwap';
 /* ─── Constants ─────────────────────────────────────── */
 const GRADUATING_MC_MIN = 30000;
 const GRADUATING_MC_MAX = 70000;
@@ -428,6 +428,7 @@ export const Pulse: FC = () => {
   const [queuedNew, setQueuedNew] = useState<Token[]>([]);
   const [liveTokenByMint, setLiveTokenByMint] = useState<Record<string, Partial<Token>>>({});
   const [newPaused, setNewPaused] = useState(false);
+  const { buyOnMeteora } = useMeteorSwap();
   const [buyAmounts, setBuyAmounts] = useState({
     newlyCreated: '0',
     graduating: '0',
@@ -564,24 +565,42 @@ export const Pulse: FC = () => {
     });
   };
 
-  const handleQuickBuy = async (token: Token, amount: string) => {
-    const sol = Number(amount);
-    if (!Number.isFinite(sol) || sol <= 0) {
-      toast.error('Enter a valid SOL amount');
-      return;
-    }
-    try {
-      setBuyingMint(token.mint);
-      const lamports = Math.floor(sol * 1e9);
-      await buy(token.mint, lamports, 100);
-      toast.success(`Bought ${token.symbol} with ${sol} SOL`);
-    } catch (error: any) {
-      toast.error(error?.message || 'Buy failed');
-    } finally {
-      setBuyingMint(null);
-    }
-  };
+const handleQuickBuy = async (token: Token, amount: string) => {
+  const sol = Number(amount);
+  if (!sol || sol <= 0) {
+    toast.error('Enter valid SOL');
+    return;
+  }
 
+  try {
+    setBuyingMint(token.mint);
+    const lamports = Math.floor(sol * 1e9);
+
+    if (!token.graduated) {
+      // 🟢 bonding curve
+      await buy(token.mint, lamports, 100);
+    } else {
+      // 🔥 Meteora swap (REAL)
+      if (!token.meteoraPool) {
+        toast.error('No pool');
+        return;
+      }
+
+      await buyOnMeteora(
+        token.meteoraPool,
+        token.mint,
+        lamports,
+        100 // slippage
+      );
+    }
+
+    toast.success(`Bought ${token.symbol}`);
+  } catch (err: any) {
+    toast.error(err?.message || 'Buy failed');
+  } finally {
+    setBuyingMint(null);
+  }
+};
   const openToken = (token: Token) => {
     if (!token?.mint) return;
     router.push(`/token/${token.mint}`);
@@ -633,7 +652,7 @@ const listed = all
   .sort((a, b) => getBondingProgress(b) - getBondingProgress(a));
 
   return (
-    <div style={{ background: '#060f1a', minHeight: '100vh', padding: '0 0 24px' }}>
+    <div  style={{ background: '#060f1a', minHeight: '100vh', padding: '0 0 24px' }}>
       {/* Page Title */}
       <div style={{ padding: '20px 20px 12px' }}>
         <h1 style={{
@@ -649,7 +668,7 @@ const listed = all
 
       {/* Three column grid */}
       <div
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" 
         style={{ gap: 14, padding: '0 16px' }}
       >
         <Panel

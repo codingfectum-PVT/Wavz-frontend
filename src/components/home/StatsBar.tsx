@@ -42,8 +42,8 @@ const palette = (name: string) => PALETTES[name.charCodeAt(0) % PALETTES.length]
 
 const HEADER: Record<Variant, string> = {
   new: '#08172A',
-  graduating: 'linear-gradient(90deg, #6E45FF 0%, #E04B29 50%, #F57B00 100%)',
-  listed: 'linear-gradient(90deg, #4284FD 50%, #FE9216 100%)',
+  graduating:  'linear-gradient(90deg, #4284FD 50%, #FE9216 100%)',
+  listed: 'linear-gradient(90deg, #6E45FF 0%, #E04B29 50%, #F57B00 100%)',
 };
 
 const PANEL_ICON: Record<Variant, string> = {
@@ -72,7 +72,13 @@ const getBondingProgress = (token: Token) => {
 const TokenRow: FC<{ token: Token; variant: Variant }> = ({ token, variant }) => {
   const { price: solPriceUsd } = useSolPrice();
   const [imgError, setImgError] = useState(false);
+const [animate, setAnimate] = useState(false);
 
+useEffect(() => {
+  setAnimate(true);
+  const t = setTimeout(() => setAnimate(false), 700);
+  return () => clearTimeout(t);
+}, [token.mint]);
   const av = palette(token.name);
   const defaultImage = `https://api.dicebear.com/7.x/shapes/svg?seed=${token.mint}`;
 
@@ -82,10 +88,11 @@ const TokenRow: FC<{ token: Token; variant: Variant }> = ({ token, variant }) =>
   );
 
   const pct = getBondingProgress(token);
-
+// console.log('rendering row', token);
   return (
     <Link href={`/token/${token.mint}`} style={{ textDecoration: 'none' }}>
       <div
+        className="pump-hover"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -153,24 +160,24 @@ const TokenRow: FC<{ token: Token; variant: Variant }> = ({ token, variant }) =>
           </div>
 
           <div
-            style={{
-              height: 5,
-              background: '#0f2a45',
-              borderRadius: 10,
-              overflow: 'hidden',
-              marginTop: 6,
-            }}
-          >
-            <div
-              style={{
-                width: `${pct}%`,
-                height: '100%',
-                background: 'linear-gradient(90deg, #3b82f6, #f59e0b)',
-                borderRadius: 10,
-                transition: 'width 0.5s ease',
-              }}
-            />
-          </div>
+  style={{
+    height: 6,
+    background: '#0f2a45',
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginTop: 6,
+  }}
+>
+  <div
+    className="progress-bar-clean"
+    style={{ width: `${pct}%` }}
+  >
+    {/* flowing particles */}
+    <span className="particle p1" />
+    <span className="particle p2" />
+    <span className="particle p3" />
+  </div>
+</div>
 
           <p style={{ textAlign: 'right', fontSize: 11, color: '#6a90b0' }}>
             {pct.toFixed(0)}%

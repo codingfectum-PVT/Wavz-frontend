@@ -97,8 +97,61 @@ body {
 .token-card {
   @apply bg-surface rounded-xl border border-gray-800 p-4 hover:border-primary-500/50 transition-all duration-200 cursor-pointer;
 }
+@keyframes pumpShake {
+  0% { transform: scale(0.9) rotate(0deg); }
+  20% { transform: scale(1.05) rotate(-1deg); }
+  40% { transform: scale(0.98) rotate(1deg); }
+  60% { transform: scale(1.03) rotate(-1deg); }
+  80% { transform: scale(0.99) rotate(1deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
 
+.pump-animation {
+  animation: pumpShake 0.6s ease-out;
+}
+.pump-hover:hover {
+  animation: pumpShake 0.5s ease;
+}
+.progress-bar-clean {
+  height: 100%;
+  border-radius: 10px;
+  position: relative;
+  transition: width 0.4s ease-out;
 
+  background: linear-gradient(90deg, #3b82f6, #f59e0b);
+  overflow: hidden;
+}
+
+/* 🔥 particles moving BACKWARD */
+.particle {
+  position: absolute;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  background: white;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  opacity: 0.8;
+
+  animation: moveBack 1.2s linear infinite;
+}
+
+/* different starting positions */
+.p1 { right: 0px; animation-delay: 0s; }
+.p2 { right: 0px; animation-delay: 0.4s; opacity: 0.6; }
+.p3 { right: 0px; animation-delay: 0.8s; opacity: 0.4; }
+
+/* 🔥 backward flow */
+@keyframes moveBack {
+  0% {
+    transform: translate(0px, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-40px, -50%) scale(0.5);
+    opacity: 0;
+  }
+}
 /*!*****************************************************************************************************************************************************************************************************************************************************************************************************!*\
   !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[11].oneOf[12].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[11].oneOf[12].use[3]!./node_modules/@solana/wallet-adapter-react-ui/styles.css ***!
   \*****************************************************************************************************************************************************************************************************************************************************************************************************/

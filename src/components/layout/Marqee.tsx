@@ -23,7 +23,7 @@ export const Marqee = () => {
       const data = await res.json();
 
       // 🔥 DEBUG (you can remove later)
-      console.log('FIRST TRADE:', data?.trades?.[0]);
+      // console.log('FIRST TRADE:', data?.trades?.[0]);
 
       const mapped: TickerEvent[] =
         data?.trades?.map((t: any) => {
