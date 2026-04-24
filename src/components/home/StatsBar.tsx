@@ -69,26 +69,66 @@ const getBondingProgress = (token: Token) => {
 };
 
 /* ─── Token Row ───────────────────────────────────────── */
+/* ─── Token Row ───────────────────────────────────────── */
 const TokenRow: FC<{ token: Token; variant: Variant }> = ({ token, variant }) => {
   const { price: solPriceUsd } = useSolPrice();
   const [imgError, setImgError] = useState(false);
-const [animate, setAnimate] = useState(false);
+  const [animate, setAnimate] = useState(false);
 
-useEffect(() => {
-  setAnimate(true);
-  const t = setTimeout(() => setAnimate(false), 700);
-  return () => clearTimeout(t);
-}, [token.mint]);
+  // 🔥 METEORA PRICE for graduated tokens (identical to TokenDetail)
+  const [meteoraPrice, setMeteoraPrice] = useState<number | null>(null);
+
+  useEffect(() => {
+    setAnimate(true);
+    const t = setTimeout(() => setAnimate(false), 700);
+    return () => clearTimeout(t);
+  }, [token.mint]);
+
+  // 🔥 Fetch Meteora price when token is graduated
+  useEffect(() => {
+    if (!token.graduated || !token.meteoraPool) {
+      setMeteoraPrice(null);
+      return;
+    }
+
+    const fetchMeteoraPrice = async () => {
+      try {
+        const { default: DLMM } = await import('@meteora-ag/dlmm');
+        const { Connection, PublicKey } = await import('@solana/web3.js');
+        const connection = new Connection(
+          process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com'
+        );
+        const dlmm = await DLMM.create(
+          connection,
+          new PublicKey(token.meteoraPool!),
+          { cluster: 'devnet' }
+        );
+        const activeBin = await dlmm.getActiveBin();
+        // Same decimal correction as TokenDetail: token=6dec, SOL=9dec → /1000
+        setMeteoraPrice(parseFloat(activeBin.price) / 1000);
+      } catch (err) {
+        console.error('TokenRow: Failed to fetch Meteora price:', err);
+      }
+    };
+
+    fetchMeteoraPrice();
+    const interval = setInterval(fetchMeteoraPrice, 30000);
+    return () => clearInterval(interval);
+  }, [token.graduated, token.meteoraPool]);
+
   const av = palette(token.name);
   const defaultImage = `https://api.dicebear.com/7.x/shapes/svg?seed=${token.mint}`;
 
-  const realMC = useMemo(
-    () => getRealMarketCap(token, solPriceUsd),
-    [token, solPriceUsd]
-  );
+  // 🔥 MC: use Meteora price for graduated, bonding curve otherwise
+  const realMC = useMemo(() => {
+    if (token.graduated && meteoraPrice !== null) {
+      return meteoraPrice * TOTAL_SUPPLY * solPriceUsd;
+    }
+    return getRealMarketCap(token, solPriceUsd);
+  }, [token, solPriceUsd, meteoraPrice]);
 
   const pct = getBondingProgress(token);
-// console.log('rendering row', token);
+
   return (
     <Link href={`/token/${token.mint}`} style={{ textDecoration: 'none' }}>
       <div
@@ -156,28 +196,33 @@ useEffect(() => {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
             <p style={{ color: '#5a80a0', fontSize: 11 }}>{token.symbol}</p>
-            <p style={{ color: '#8aadcc', fontSize: 12 }}>MC: {formatMC(realMC)}</p>
+            <p style={{ color: '#8aadcc', fontSize: 12 }}>
+              MC:{' '}
+              {token.graduated && meteoraPrice === null
+                ? <span style={{ color: '#4a6a8a', fontSize: 11 }}>Loading…</span>
+                : formatMC(realMC)
+              }
+            </p>
           </div>
 
           <div
-  style={{
-    height: 6,
-    background: '#0f2a45',
-    borderRadius: 10,
-    overflow: 'hidden',
-    marginTop: 6,
-  }}
->
-  <div
-    className="progress-bar-clean"
-    style={{ width: `${pct}%` }}
-  >
-    {/* flowing particles */}
-    <span className="particle p1" />
-    <span className="particle p2" />
-    <span className="particle p3" />
-  </div>
-</div>
+            style={{
+              height: 6,
+              background: '#0f2a45',
+              borderRadius: 10,
+              overflow: 'hidden',
+              marginTop: 6,
+            }}
+          >
+            <div
+              className="progress-bar-clean"
+              style={{ width: `${pct}%` }}
+            >
+              <span className="particle p1" />
+              <span className="particle p2" />
+              <span className="particle p3" />
+            </div>
+          </div>
 
           <p style={{ textAlign: 'right', fontSize: 11, color: '#6a90b0' }}>
             {pct.toFixed(0)}%
@@ -187,7 +232,6 @@ useEffect(() => {
     </Link>
   );
 };
-
 /* ─── Panel ───────────────────────────────────────────── */
 const Panel: FC<{
   title: string;

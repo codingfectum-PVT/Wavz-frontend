@@ -502,7 +502,7 @@ export function useLaunchpadActions() {
       // Handle "already processed" as success
       if (error?.message?.includes('already been processed') || 
           error?.message?.includes('AlreadyProcessed')) {
-        console.log('Transaction already processed - treating as success');
+        // console.log('Transaction already processed - treating as success');
         return 'already_processed';
       }
       throw error;

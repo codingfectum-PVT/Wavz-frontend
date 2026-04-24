@@ -379,18 +379,14 @@ export function useMeteorSwap() {
       // });
 
       // Handle large BN values that exceed Number.MAX_SAFE_INTEGER
-      const outAmount = quote.outAmount.ltn(Number.MAX_SAFE_INTEGER) 
-        ? quote.outAmount.toNumber() 
-        : Number(quote.outAmount.toString());
-      const fee = quote.fee.ltn(Number.MAX_SAFE_INTEGER)
-        ? quote.fee.toNumber()
-        : Number(quote.fee.toString());
+const outAmount = quote.outAmount.toString();
+const fee = quote.fee.toString();
 
       return {
-        outAmount,
-        fee,
-        priceImpact: quote.priceImpact ? Number(quote.priceImpact.toString()) : 0,
-      };
+  outAmount: Number(outAmount) || 0, // only for display (safe fallback)
+  fee: Number(fee) || 0,
+  priceImpact: quote.priceImpact ? Number(quote.priceImpact.toString()) : 0,
+};
     } catch (error: any) {
       console.error('Error getting Meteora quote:', error);
       throw error;

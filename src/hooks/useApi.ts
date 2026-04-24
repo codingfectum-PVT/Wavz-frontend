@@ -8,6 +8,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 export interface Token {
   mint: string;
   name: string;
+  meteoraPool?: string | null;
   symbol: string;
   description?: string;
   image?: string;

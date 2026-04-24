@@ -157,11 +157,11 @@ setResults(filtered.slice(0, 6));
 
                 <Link
                   href="/create"
-                  className="flex items-center gap-2 px-6 py-3 text-white"
+                  className="flex items-center gap-1 px-6 py-3 text-white"
                   style={{ backgroundColor: '#FE9216', borderRadius: '14px',textAlign:'left',fontSize:'18px',boxShadow: "rgba(255, 255, 255, 0.5) 0px 6px 4px 0px inset,rgba(254, 146, 22, 0.15) 0px 0px 12px 0px" }}
                 >
-                  <Plus className="w-5 h-5" />
-                  <span>Create Token</span>
+                  <Plus className="w-6 h-6" />
+                  <span style={{fontSize:'18px',color:'#fff'}}>Create Token</span>
                 </Link>
 
                    <div className="relative custom-wallet">

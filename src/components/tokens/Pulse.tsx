@@ -63,6 +63,7 @@ const PROGRESS_COLOR: Record<Variant, string> = {
 };
 
 /* ─── Token Row ───────────────────────────────────────── */
+/* ─── Token Row ───────────────────────────────────────── */
 const TokenRow: FC<{
   token: Token;
   variant: Variant;
@@ -73,150 +74,190 @@ const TokenRow: FC<{
   const { price: solPriceUsd } = useSolPrice();
   const [imgError, setImgError] = useState(false);
 
+  // 🔥 METEORA PRICE for graduated tokens
+  const [meteoraPrice, setMeteoraPrice] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!token.graduated || !token.meteoraPool) {
+      setMeteoraPrice(null);
+      return;
+    }
+
+    const fetchMeteoraPrice = async () => {
+      try {
+        const { default: DLMM } = await import('@meteora-ag/dlmm');
+        const { Connection, PublicKey } = await import('@solana/web3.js');
+        const connection = new Connection(
+          process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com'
+        );
+        const dlmm = await DLMM.create(
+          connection,
+          new PublicKey(token.meteoraPool!),
+          { cluster: 'devnet' }  // ← change to 'mainnet-beta' for mainnet
+        );
+        const activeBin = await dlmm.getActiveBin();
+        setMeteoraPrice(parseFloat(activeBin.price) / 1000);
+      } catch (err) {
+        console.error('Pulse TokenRow: Failed to fetch Meteora price:', err);
+      }
+    };
+
+    fetchMeteoraPrice();
+    const interval = setInterval(fetchMeteoraPrice, 30000);
+    return () => clearInterval(interval);
+  }, [token.graduated, token.meteoraPool]);
+
   const av = palette(token.name);
   const defaultImage = `https://api.dicebear.com/7.x/shapes/svg?seed=${token.mint}`;
 
-  const realMC = useMemo(
-    () => getRealMarketCap(token, solPriceUsd),
-    [token, solPriceUsd]
-  );
-const getBondingProgress = (token: Token) => {
-  const realSol = Number(token.realSolReserves || 0) / 1e9;
-  const threshold = 60;
+  // 🔥 MC: Meteora price for graduated, bonding curve otherwise
+  const realMC = useMemo(() => {
+    if (token.graduated && meteoraPrice !== null) {
+      return meteoraPrice * TOTAL_SUPPLY * solPriceUsd;
+    }
+    return getRealMarketCap(token, solPriceUsd);
+  }, [token, solPriceUsd, meteoraPrice]);
 
-  if (token.graduated) return 100;
-
-  return Math.max(0, Math.min((realSol / threshold) * 100, 100));
-};
-const pct = getBondingProgress(token);
+  const getBondingProgress = (token: Token) => {
+    const realSol = Number(token.realSolReserves || 0) / 1e9;
+    const threshold = 60;
+    if (token.graduated) return 100;
+    return Math.max(0, Math.min((realSol / threshold) * 100, 100));
+  };
+  const pct = getBondingProgress(token);
 
   return (
-  <div
-    onClick={() => onOpenToken?.(token)}
-    style={{
-  display: 'flex',
-  alignItems: 'stretch', // 🔥 important
-  gap: 0,
-  background: '#0d1f33',
-  borderRadius: 10,
-  marginBottom: 6,
-  border: '1px solid rgba(255,255,255,0.04)',
-  cursor: onOpenToken ? 'pointer' : 'default',
- }}
->
-     <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '7px',
-    flex: 1
-  }}>
-      {/* Avatar */}
-      <div style={{
-        width: 48,
-        height: 48,
+    <div
+      onClick={() => onOpenToken?.(token)}
+      style={{
+        display: 'flex',
+        alignItems: 'stretch',
+        gap: 0,
+        background: '#0d1f33',
         borderRadius: 10,
-        flexShrink: 0,
-        overflow: 'hidden',
-        background: av.bg,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 13,
-        fontWeight: 700,
-        color: av.color,
-      }}>
-        {!imgError ? (
-          <img
-            src={token.image || defaultImage}
-            alt={token.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            onError={() => setImgError(true)}
-          />
-        ) : (
-          initials(token.name)
-        )}
-      </div>
-
-      {/* Middle content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Row 1: name + time */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{
-            color: '#e2eaf4',
-            fontSize: 13,
-            fontWeight: 700,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            maxWidth: '70%',
-          }}>
-            {token.name}
-          </span>
-          <span style={{ color: '#f97316', fontSize: 11, fontWeight: 600 }}>
-            {timeAgo(String(token.createdAt))}
-          </span>
-        </div>
-
-        {/* Row 2: symbol + MC */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
-          <span style={{ color: '#4a6a8a', fontSize: 11 }}>{token.symbol}</span>
-          <span style={{ color: '#7a9fbc', fontSize: 11 }}>MC: {formatMC(realMC)}</span>
-        </div>
-
-        {/* Progress bar */}
-        <div style={{
-          height: 4,
-          background: '#0a1929',
-          borderRadius: 4,
-          overflow: 'hidden',
-          marginTop: 6,
-        }}>
-          <div style={{
-            width: `${pct}%`,
-            height: '100%',
-            background: PROGRESS_COLOR[variant],
-            transition: 'width 0.5s ease',
-            borderRadius: 4,
-          }} />
-        </div>
-
-        {/* Percentage */}
-        <div style={{ textAlign: 'right', fontSize: 10, color: '#34557D', marginTop: 2 }}>
-          {pct.toFixed(0)}%
-        </div>
-      </div>
-      </div>
-       <div style={{backgroundColor:'#182536',padding:'15px'}}>
-      {/* Lightning button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onQuickBuy?.(token);
-        }}
-        disabled={!onQuickBuy || isBuying}
-        style={{
-        width: 36,
-        height: 36,
-        borderRadius: 8,
-        background: '#52FC55',
-        border: 'none',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        flexShrink: 0,
-        marginTop:'5px',
-        opacity: isBuying ? 0.7 : 1,
+        marginBottom: 6,
+        border: '1px solid rgba(255,255,255,0.04)',
+        cursor: onOpenToken ? 'pointer' : 'default',
       }}
-      >
-        {isBuying ? <AppLoader size={50} /> : <Zap size={17} color="#000" fill="#000" />}
-      </button>
+    >
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '7px',
+        flex: 1,
+      }}>
+        {/* Avatar */}
+        <div style={{
+          width: 48,
+          height: 48,
+          borderRadius: 10,
+          flexShrink: 0,
+          overflow: 'hidden',
+          background: av.bg,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 13,
+          fontWeight: 700,
+          color: av.color,
+        }}>
+          {!imgError ? (
+            <img
+              src={token.image || defaultImage}
+              alt={token.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            initials(token.name)
+          )}
+        </div>
+
+        {/* Middle content */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Row 1: name + time */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{
+              color: '#e2eaf4',
+              fontSize: 13,
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: '70%',
+            }}>
+              {token.name}
+            </span>
+            <span style={{ color: '#f97316', fontSize: 11, fontWeight: 600 }}>
+              {timeAgo(String(token.createdAt))}
+            </span>
+          </div>
+
+          {/* Row 2: symbol + MC */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
+            <span style={{ color: '#4a6a8a', fontSize: 11 }}>{token.symbol}</span>
+            <span style={{ color: '#7a9fbc', fontSize: 11 }}>
+              MC:{' '}
+              {token.graduated && meteoraPrice === null
+                ? <span style={{ color: '#34557D', fontSize: 10 }}>Loading…</span>
+                : formatMC(realMC)
+              }
+            </span>
+          </div>
+
+          {/* Progress bar */}
+          <div style={{
+            height: 4,
+            background: '#0a1929',
+            borderRadius: 4,
+            overflow: 'hidden',
+            marginTop: 6,
+          }}>
+            <div style={{
+              width: `${pct}%`,
+              height: '100%',
+              background: PROGRESS_COLOR[variant],
+              transition: 'width 0.5s ease',
+              borderRadius: 4,
+            }} />
+          </div>
+
+          {/* Percentage */}
+          <div style={{ textAlign: 'right', fontSize: 10, color: '#34557D', marginTop: 2 }}>
+            {pct.toFixed(0)}%
+          </div>
+        </div>
+      </div>
+
+      <div style={{ backgroundColor: '#182536', padding: '15px' }}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onQuickBuy?.(token);
+          }}
+          disabled={!onQuickBuy || isBuying}
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            background: '#52FC55',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            flexShrink: 0,
+            marginTop: '5px',
+            opacity: isBuying ? 0.7 : 1,
+          }}
+        >
+          {isBuying ? <AppLoader size={50} /> : <Zap size={17} color="#000" fill="#000" />}
+        </button>
       </div>
     </div>
   );
 };
-
 /* ─── Panel Header config ─────────────────────────────── */
 const PANEL_ICON: Record<Variant, string> = {
   new: '👀',
@@ -652,16 +693,10 @@ const listed = all
   .sort((a, b) => getBondingProgress(b) - getBondingProgress(a));
 
   return (
-    <div  style={{ background: '#060f1a', minHeight: '100vh', padding: '0 0 24px' }}>
+<div style={{ background: '#060f1a', padding: '0 0 24px' }}>
       {/* Page Title */}
       <div style={{ padding: '20px 20px 12px' }}>
-        <h1 style={{
-          color: '#e2eaf4',
-          fontSize: 26,
-          fontWeight: 800,
-          margin: 0,
-          letterSpacing: '-0.02em',
-        }}>
+        <h1 className="text-2xl md:text-4xl font-semibold text-white">
           Pulse
         </h1>
       </div>

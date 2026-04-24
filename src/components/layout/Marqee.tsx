@@ -108,9 +108,25 @@ export const Marqee = () => {
             }}
           >
             {/* WALLET */}
-            <span style={{ color: '#fff', fontWeight: 500, fontSize: '15px' }}>
-              {e.wallet}
-            </span>
+            <span
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: '#fff',
+              fontWeight: 500,
+              fontSize: '15px',
+            }}
+          >
+            <img
+              src="/images/duck.png"
+              alt="wallet"
+              width={16}
+              height={16}
+              style={{ borderRadius: '50%' }}
+            />
+            {e.wallet}
+          </span>
 
             {/* ACTION */}
             <span

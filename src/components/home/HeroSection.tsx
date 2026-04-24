@@ -6,8 +6,9 @@ import { Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const HeroSection: FC = () => {
+  
   return (
-    <div className="relative overflow-hidden rounded-2xl"  style={{ height: '520px' }}>
+    <div className="relative overflow-hidden rounded-2xl"  style={{ height: '380px' }}>
 
       {/* VIDEO BACKGROUND — tries mp4, webm, mov in order */}
       {/* DESKTOP VIDEO */}
@@ -16,7 +17,7 @@ export const HeroSection: FC = () => {
   loop
   muted
   playsInline
-  className="absolute inset-0 w-full h-full object-cover hidden lg:block"
+  className="absolute top-0 left-0 w-full h-[100%] object-cover hidden lg:block"
   style={{ borderRadius: 'inherit' }}
 >
   <source src="/images/mainvideo.mp4" type="video/mp4" />
