@@ -120,7 +120,7 @@ const TokenRow: FC<{
 
   const getBondingProgress = (token: Token) => {
     const realSol = Number(token.realSolReserves || 0) / 1e9;
-    const threshold = 60;
+    const threshold = 62;
     if (token.graduated) return 100;
     return Math.max(0, Math.min((realSol / threshold) * 100, 100));
   };
@@ -657,7 +657,7 @@ const handleQuickBuy = async (token: Token, amount: string) => {
   const all = Array.from(map.values());
 const getBondingProgress = (token: Token) => {
   const realSol = Number(token.realSolReserves || 0) / 1e9;
-  const threshold = 60;
+  const threshold = 62;
 
   if (token.graduated) return 100;
 

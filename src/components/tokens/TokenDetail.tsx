@@ -163,8 +163,9 @@ export const TokenDetail: FC<TokenDetailProps> = ({ mint }) => {
       if (data.mint !== mint) return;
       
       // Update Meteora price from trade
+      // data.price is already normalized (SOL/token) — backend divides by 1000 before storing/emitting
       if (data.isMeteoraSwap && data.price) {
-        setMeteoraPrice(data.price / 1000);
+        setMeteoraPrice(data.price);
       }
 
       // Prepend new trade to activity list in real-time
@@ -275,7 +276,7 @@ export const TokenDetail: FC<TokenDetailProps> = ({ mint }) => {
       }
     };
     fetchActivityTrades(true);
-    const interval = setInterval(() => fetchActivityTrades(false), 15000);
+    const interval = setInterval(() => fetchActivityTrades(false), 30000);
     return () => {
       cancelled = true;
       clearInterval(interval);

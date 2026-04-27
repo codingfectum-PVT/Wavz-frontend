@@ -115,7 +115,7 @@ export const PriceChart: FC<PriceChartProps> = ({ mint }) => {
     };
 
     fetchCandles();
-    const interval = setInterval(fetchCandles, 30000);
+    const interval = setInterval(fetchCandles, 60000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [mint, timeRange]);
 
