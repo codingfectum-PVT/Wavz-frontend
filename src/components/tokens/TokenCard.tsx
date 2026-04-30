@@ -58,7 +58,8 @@ const [liveReserves, setLiveReserves] = useState({
     return () => { cancelled = true; };
   }, [token.mint]);
 
-  // 🔥 FETCH TRADES from DB + poll every 15s (identical to TokenDetail)
+  // 🔥 FETCH TRADES from DB on mount only — WS handles real-time updates.
+  // Poll every 60s as fallback in case WS drops (not 15s — reduces DB connection pressure)
   useEffect(() => {
     let cancelled = false;
 
@@ -84,7 +85,7 @@ const [liveReserves, setLiveReserves] = useState({
     };
 
     fetchTrades(true);
-    const interval = setInterval(() => fetchTrades(false), 15000);
+    const interval = setInterval(() => fetchTrades(false), 60000);
     return () => {
       cancelled = true;
       clearInterval(interval);

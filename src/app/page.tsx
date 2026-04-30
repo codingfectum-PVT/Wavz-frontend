@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { TokenList } from '@/components/tokens/TokenList';
 import { HeroSection } from '@/components/home/HeroSection';
 import { TokenPanels } from '@/components/home/StatsBar';

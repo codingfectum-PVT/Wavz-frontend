@@ -1,0 +1,7 @@
+# Build artifacts managed by Railway
+.next/
+node_modules/
+tsconfig.tsbuildinfo
+
+# Archives
+*.zip

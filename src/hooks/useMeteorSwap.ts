@@ -2,18 +2,29 @@
 
 import { useCallback } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { PublicKey, ComputeBudgetProgram, Connection } from '@solana/web3.js';
-import { 
-  getAssociatedTokenAddressSync, 
-  createAssociatedTokenAccountInstruction,
-  TOKEN_PROGRAM_ID
+import { PublicKey, ComputeBudgetProgram, SystemProgram, Transaction, Connection } from '@solana/web3.js';
+import {
+  getAssociatedTokenAddressSync,
+  createAssociatedTokenAccountIdempotentInstruction,
+  createSyncNativeInstruction,
+  createCloseAccountInstruction,
+  TOKEN_PROGRAM_ID,
+  NATIVE_MINT,
 } from '@solana/spl-token';
-import DLMM from '@meteora-ag/dlmm';
+import { CpAmm, deriveTokenVaultAddress } from '@meteora-ag/cp-amm-sdk';
 import BN from 'bn.js';
 
-/**
- * Confirm transaction using polling (works with Alchemy free tier)
- */
+// Our pools use FeeTimeSchedulerLinear (mode=0). The SDK checks byte 8 of
+// baseFeeInfo.data for RateLimiter (mode=2). Since byte 8 = 0 in a zero-filled
+// buffer, no extra accounts are added to the swap instruction.
+const SYNTHETIC_POOL_STATE = {
+  poolFees: {
+    baseFee: {
+      baseFeeInfo: { data: Buffer.alloc(9) },
+    },
+  },
+} as any;
+
 async function confirmTransactionPolling(
   connection: Connection,
   signature: string,
@@ -25,34 +36,36 @@ async function confirmTransactionPolling(
   for (let i = 0; i < maxRetries; i++) {
     try {
       const status = await connection.getSignatureStatus(signature);
-      
-      // Accept 'processed' for faster feedback
-      if (status?.value?.confirmationStatus === 'processed' ||
-          status?.value?.confirmationStatus === 'confirmed' || 
-          status?.value?.confirmationStatus === 'finalized') {
+
+      if (
+        status?.value?.confirmationStatus === 'processed' ||
+        status?.value?.confirmationStatus === 'confirmed' ||
+        status?.value?.confirmationStatus === 'finalized'
+      ) {
         if (status.value.err) {
           throw new Error(`Transaction failed: ${JSON.stringify(status.value.err)}`);
         }
         return true;
       }
-      
-      // Only check block height every 10 polls to reduce RPC calls
+
       if (i % 10 === 0) {
         const currentBlockHeight = await connection.getBlockHeight();
         if (currentBlockHeight > lastValidBlockHeight) {
           throw new Error('Transaction expired: block height exceeded');
         }
       }
-      
+
       await new Promise(resolve => setTimeout(resolve, delayMs));
     } catch (error: any) {
-      if (error.message?.includes('Transaction expired')) {
+      if (
+        error.message?.includes('Transaction expired') ||
+        error.message?.includes('Transaction failed')
+      ) {
         throw error;
       }
-      if (i % 5 === 0) console.log('Polling attempt', i + 1);
     }
   }
-  
+
   throw new Error('Transaction confirmation timeout');
 }
 
@@ -61,7 +74,7 @@ export function useMeteorSwap() {
   const wallet = useWallet();
 
   /**
-   * Buy tokens on Meteora (SOL -> Token)
+   * Buy tokens on Meteora DAMM v2 (SOL -> Token)
    */
   const buyOnMeteora = useCallback(async (
     poolAddress: string,
@@ -73,122 +86,87 @@ export function useMeteorSwap() {
       throw new Error('Wallet not connected');
     }
 
-    // console.log('Meteora Buy:', { poolAddress, tokenMint, solAmount, slippageBps });
-
     const poolPubkey = new PublicKey(poolAddress);
     const mintPubkey = new PublicKey(tokenMint);
+    const cpAmm = new CpAmm(connection);
 
-    // Create DLMM instance with mainnet-beta cluster
-    const dlmm = await DLMM.create(connection, poolPubkey, { cluster: 'mainnet-beta' });
+    const tokenAVault = deriveTokenVaultAddress(mintPubkey, poolPubkey);
+    const tokenBVault = deriveTokenVaultAddress(NATIVE_MINT, poolPubkey);
 
-    // IMPORTANT: Refetch states to ensure bin arrays are populated
-    await dlmm.refetchStates();
-    
-    // Fetch all bin arrays - try multiple methods
-    let binArrays: any[] = (dlmm as any).binArrays || [];
-    if (binArrays.length === 0) {
-      try {
-        // Try getBinArrays() method
-        binArrays = await (dlmm as any).getBinArrays() || [];
-      } catch (e) {
-        // console.log('getBinArrays failed, trying alternative');
-      }
-    }
-    
-    // If still no bin arrays, try getBinArrayForSwap with a range around active bin
-    if (binArrays.length === 0) {
-      try {
-        const activeBin = dlmm.lbPair.activeId;
-        // Fetch bin arrays for a wide range around active bin
-        const binArrayAccounts = await (dlmm as any).getBinArrayForSwap(true, 50);
-        if (binArrayAccounts && binArrayAccounts.length > 0) {
-          binArrays = binArrayAccounts;
-          // console.log(`Got ${binArrays.length} bin arrays via getBinArrayForSwap`);
-        }
-      } catch (e) {
-        // console.log('getBinArrayForSwap failed:', e);
-      }
-    }
-    
-    // console.log(`Bin arrays loaded: ${binArrays.length}`);
+    // Fetch vault balances to compute minimum output with slippage
+    const [tokenAInfo, tokenBInfo] = await Promise.all([
+      connection.getTokenAccountBalance(tokenAVault),
+      connection.getTokenAccountBalance(tokenBVault),
+    ]);
+    const reserveA = BigInt(tokenAInfo.value.amount); // token units
+    const reserveB = BigInt(tokenBInfo.value.amount); // lamports
 
-    // Get user's token account
-    const userTokenAccount = getAssociatedTokenAddressSync(mintPubkey, wallet.publicKey);
+    // Constant product formula with 1% pool fee
+    const amountInBig = BigInt(Math.floor(solAmount));
+    const amountInAfterFee = (amountInBig * BigInt(99)) / BigInt(100);
+    const expectedOut = (amountInAfterFee * reserveA) / (reserveB + amountInAfterFee);
+    const minOutAmount = (expectedOut * BigInt(10000 - slippageBps)) / BigInt(10000);
 
-    // Check if token account exists, create ATA instruction if not
-    const tokenAccountInfo = await connection.getAccountInfo(userTokenAccount);
-    
-    // Determine which token is SOL and which is the token
-    // In Meteora DLMM, tokenX is usually SOL (WSOL) and tokenY is the token
-    const isTokenXSol = dlmm.tokenX.publicKey.toBase58() === 'So11111111111111111111111111111111111111112';
-    const swapForY = isTokenXSol; // If SOL is tokenX, we swap for Y (the token)
-    
-    // console.log(`Token X: ${dlmm.tokenX.publicKey.toBase58()}, Token Y: ${dlmm.tokenY.publicKey.toBase58()}`);
-    // console.log(`Swapping SOL for token, swapForY: ${swapForY}`);
+    const tx = new Transaction();
+    const wsolAta = getAssociatedTokenAddressSync(NATIVE_MINT, wallet.publicKey, false, TOKEN_PROGRAM_ID);
+    const tokenAta = getAssociatedTokenAddressSync(mintPubkey, wallet.publicKey, false, TOKEN_PROGRAM_ID);
 
-    // Get swap quote (SOL -> Token)
-    const swapAmount = new BN(solAmount);
-    const quote = dlmm.swapQuote(
-      swapAmount,
-      swapForY,
-      new BN(slippageBps),
-      binArrays
-    );
+    tx.add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1_000_000 }));
+    tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 450_000 }));
 
-    // console.log('Swap quote:', {
-    //   consumedInAmount: quote.consumedInAmount.toString(),
-    //   outAmount: quote.outAmount.toString(),
-    //   fee: quote.fee.toString(),
-    // });
+    // Create ATAs (no-op if they already exist)
+    tx.add(createAssociatedTokenAccountIdempotentInstruction(
+      wallet.publicKey, wsolAta, wallet.publicKey, NATIVE_MINT, TOKEN_PROGRAM_ID,
+    ));
+    tx.add(createAssociatedTokenAccountIdempotentInstruction(
+      wallet.publicKey, tokenAta, wallet.publicKey, mintPubkey, TOKEN_PROGRAM_ID,
+    ));
 
-    // Build swap transaction using SDK
-    const swapTx = await dlmm.swap({
-      inAmount: swapAmount,
-      minOutAmount: quote.minOutAmount,
-      inToken: isTokenXSol ? dlmm.tokenX.publicKey : dlmm.tokenY.publicKey,
-      outToken: isTokenXSol ? dlmm.tokenY.publicKey : dlmm.tokenX.publicKey,
-      lbPair: poolPubkey,
-      user: wallet.publicKey,
-      binArraysPubkey: quote.binArraysPubkey,
+    // Wrap SOL → WSOL
+    tx.add(SystemProgram.transfer({ fromPubkey: wallet.publicKey, toPubkey: wsolAta, lamports: solAmount }));
+    tx.add(createSyncNativeInstruction(wsolAta));
+
+    // Build DAMM v2 swap instruction (WSOL → Token)
+    const swapTx = await cpAmm.swap({
+      payer:               wallet.publicKey,
+      pool:                poolPubkey,
+      inputTokenMint:      NATIVE_MINT,
+      outputTokenMint:     mintPubkey,
+      amountIn:            new BN(solAmount),
+      minimumAmountOut:    new BN(minOutAmount.toString()),
+      tokenAVault,
+      tokenBVault,
+      tokenAMint:          mintPubkey,
+      tokenBMint:          NATIVE_MINT,
+      tokenAProgram:       TOKEN_PROGRAM_ID,
+      tokenBProgram:       TOKEN_PROGRAM_ID,
+      referralTokenAccount: null,
+      poolState:           SYNTHETIC_POOL_STATE,
     });
 
-    // Add create ATA instruction if needed (before swap)
-    if (!tokenAccountInfo) {
-      const createAtaIx = createAssociatedTokenAccountInstruction(
-        wallet.publicKey,
-        userTokenAccount,
-        wallet.publicKey,
-        mintPubkey
-      );
-      swapTx.instructions.unshift(createAtaIx);
+    for (const ix of swapTx.instructions) {
+      if (!ix.programId.equals(ComputeBudgetProgram.programId)) tx.add(ix);
     }
 
-    // Add priority fee for faster processing (only once!)
-    swapTx.instructions.unshift(
-      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1_000_000 })
-    );
+    // Recover WSOL rent
+    tx.add(createCloseAccountInstruction(wsolAta, wallet.publicKey, wallet.publicKey));
 
-    // Set recent blockhash and fee payer
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    swapTx.recentBlockhash = blockhash;
-    swapTx.feePayer = wallet.publicKey;
+    tx.recentBlockhash = blockhash;
+    tx.feePayer = wallet.publicKey;
 
-    // Sign and send
-    const signedTx = await wallet.signTransaction(swapTx);
+    const signedTx = await wallet.signTransaction(tx);
     const signature = await connection.sendRawTransaction(signedTx.serialize(), {
       skipPreflight: true,
       preflightCommitment: 'processed',
     });
 
-    // Confirm using fast polling
     await confirmTransactionPolling(connection, signature, blockhash, lastValidBlockHeight);
-
-    // console.log('Meteora buy completed:', signature);
     return signature;
   }, [connection, wallet]);
 
   /**
-   * Sell tokens on Meteora (Token -> SOL)
+   * Sell tokens on Meteora DAMM v2 (Token -> SOL)
    */
   const sellOnMeteora = useCallback(async (
     poolAddress: string,
@@ -200,231 +178,154 @@ export function useMeteorSwap() {
       throw new Error('Wallet not connected');
     }
 
-    // console.log('Meteora Sell:', { poolAddress, tokenMint, tokenAmount, slippageBps });
-
     const poolPubkey = new PublicKey(poolAddress);
+    const mintPubkey = new PublicKey(tokenMint);
+    const cpAmm = new CpAmm(connection);
 
-    // Create DLMM instance with mainnet-beta cluster
-    const dlmm = await DLMM.create(connection, poolPubkey, { cluster: 'mainnet-beta' });
+    const tokenAVault = deriveTokenVaultAddress(mintPubkey, poolPubkey);
+    const tokenBVault = deriveTokenVaultAddress(NATIVE_MINT, poolPubkey);
 
-    // IMPORTANT: Refetch states to ensure bin arrays are populated
-    await dlmm.refetchStates();
-    
-    // Fetch all bin arrays - try multiple methods
-    let binArrays: any[] = (dlmm as any).binArrays || [];
-    if (binArrays.length === 0) {
-      try {
-        binArrays = await (dlmm as any).getBinArrays() || [];
-      } catch (e) {
-        // console.log('getBinArrays failed, trying alternative');
-      }
-    }
-    
-    // If still no bin arrays, try getBinArrayForSwap
-    if (binArrays.length === 0) {
-      try {
-        const binArrayAccounts = await (dlmm as any).getBinArrayForSwap(false, 50); // false = selling tokens
-        if (binArrayAccounts && binArrayAccounts.length > 0) {
-          binArrays = binArrayAccounts;
-          // console.log(`Got ${binArrays.length} bin arrays via getBinArrayForSwap`);
-        }
-      } catch (e) {
-        // console.log('getBinArrayForSwap failed:', e);
-      }
-    }
-    
-    // console.log(`Bin arrays loaded: ${binArrays.length}`);
+    // Fetch vault balances to compute minimum output with slippage
+    const [tokenAInfo, tokenBInfo] = await Promise.all([
+      connection.getTokenAccountBalance(tokenAVault),
+      connection.getTokenAccountBalance(tokenBVault),
+    ]);
+    const reserveA = BigInt(tokenAInfo.value.amount); // token units
+    const reserveB = BigInt(tokenBInfo.value.amount); // lamports
 
-    // Determine which token is SOL and which is the token
-    const isTokenXSol = dlmm.tokenX.publicKey.toBase58() === 'So11111111111111111111111111111111111111112';
-    const swapForY = !isTokenXSol; // If SOL is tokenX, we swap for X (SOL), so swapForY is false
-    
-    // console.log(`Token X: ${dlmm.tokenX.publicKey.toBase58()}, Token Y: ${dlmm.tokenY.publicKey.toBase58()}`);
-    // console.log(`Swapping token for SOL, swapForY: ${swapForY}`);
+    // Constant product formula with 1% pool fee (Token → SOL)
+    const amountInBig = BigInt(Math.floor(tokenAmount));
+    const amountInAfterFee = (amountInBig * BigInt(99)) / BigInt(100);
+    const expectedOut = (amountInAfterFee * reserveB) / (reserveA + amountInAfterFee); // lamports out
+    const minOutAmount = (expectedOut * BigInt(10000 - slippageBps)) / BigInt(10000);
 
-    // Get swap quote (Token -> SOL)
-    const swapAmount = new BN(tokenAmount);
-    const quote = dlmm.swapQuote(
-      swapAmount,
-      swapForY,
-      new BN(slippageBps),
-      binArrays
-    );
+    const tx = new Transaction();
+    const wsolAta = getAssociatedTokenAddressSync(NATIVE_MINT, wallet.publicKey, false, TOKEN_PROGRAM_ID);
 
-    // console.log('Swap quote:', {
-    //   consumedInAmount: quote.consumedInAmount.toString(),
-    //   outAmount: quote.outAmount.toString(),
-    //   fee: quote.fee.toString(),
-    // });
+    tx.add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1_000_000 }));
+    tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 450_000 }));
 
-    // Build swap transaction using SDK
-    const swapTx = await dlmm.swap({
-      inAmount: swapAmount,
-      minOutAmount: quote.minOutAmount,
-      inToken: isTokenXSol ? dlmm.tokenY.publicKey : dlmm.tokenX.publicKey, // token
-      outToken: isTokenXSol ? dlmm.tokenX.publicKey : dlmm.tokenY.publicKey, // SOL
-      lbPair: poolPubkey,
-      user: wallet.publicKey,
-      binArraysPubkey: quote.binArraysPubkey,
+    // Create WSOL ATA to receive output
+    tx.add(createAssociatedTokenAccountIdempotentInstruction(
+      wallet.publicKey, wsolAta, wallet.publicKey, NATIVE_MINT, TOKEN_PROGRAM_ID,
+    ));
+
+    // Build DAMM v2 swap instruction (Token → WSOL)
+    const swapTx = await cpAmm.swap({
+      payer:               wallet.publicKey,
+      pool:                poolPubkey,
+      inputTokenMint:      mintPubkey,
+      outputTokenMint:     NATIVE_MINT,
+      amountIn:            new BN(tokenAmount),
+      minimumAmountOut:    new BN(minOutAmount.toString()),
+      tokenAVault,
+      tokenBVault,
+      tokenAMint:          mintPubkey,
+      tokenBMint:          NATIVE_MINT,
+      tokenAProgram:       TOKEN_PROGRAM_ID,
+      tokenBProgram:       TOKEN_PROGRAM_ID,
+      referralTokenAccount: null,
+      poolState:           SYNTHETIC_POOL_STATE,
     });
 
-    // Add compute budget at the beginning
-    swapTx.instructions.unshift(
-      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1_000_000 })
-    );
+    for (const ix of swapTx.instructions) {
+      if (!ix.programId.equals(ComputeBudgetProgram.programId)) tx.add(ix);
+    }
 
-    // Set recent blockhash and fee payer
+    // Unwrap WSOL → SOL
+    tx.add(createCloseAccountInstruction(wsolAta, wallet.publicKey, wallet.publicKey));
+
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    swapTx.recentBlockhash = blockhash;
-    swapTx.feePayer = wallet.publicKey;
+    tx.recentBlockhash = blockhash;
+    tx.feePayer = wallet.publicKey;
 
-    // Sign and send
-    const signedTx = await wallet.signTransaction(swapTx);
+    const signedTx = await wallet.signTransaction(tx);
     const signature = await connection.sendRawTransaction(signedTx.serialize(), {
       skipPreflight: true,
       preflightCommitment: 'processed',
     });
 
-    // Confirm using fast polling
     await confirmTransactionPolling(connection, signature, blockhash, lastValidBlockHeight);
-
-    // console.log('Meteora sell completed:', signature);
     return signature;
   }, [connection, wallet]);
 
   /**
-   * Get swap quote from Meteora
+   * Get swap quote from DAMM v2 pool using constant product formula
    */
   const getQuote = useCallback(async (
     poolAddress: string,
     amount: number, // in smallest units
-    isBuy: boolean
+    isBuy: boolean,
+    tokenMint: string
   ): Promise<{ outAmount: number; fee: number; priceImpact: number }> => {
-    try {
-      // console.log('getQuote called:', { poolAddress, amount, isBuy });
-      
-      const poolPubkey = new PublicKey(poolAddress);
-      const dlmm = await DLMM.create(connection, poolPubkey, { cluster: 'mainnet-beta' });
-      
-      // IMPORTANT: Refetch states to ensure bin arrays are populated
-      await dlmm.refetchStates();
-      
-      // Fetch all bin arrays - try multiple methods
-      let binArrays: any[] = (dlmm as any).binArrays || [];
-      if (binArrays.length === 0) {
-        try {
-          binArrays = await (dlmm as any).getBinArrays() || [];
-        } catch (e) {
-          // console.log('getBinArrays failed, trying alternative');
-        }
-      }
-      
-      // If still no bin arrays, try getBinArrayForSwap
-      if (binArrays.length === 0) {
-        try {
-          const binArrayAccounts = await (dlmm as any).getBinArrayForSwap(isBuy, 50);
-          if (binArrayAccounts && binArrayAccounts.length > 0) {
-            binArrays = binArrayAccounts;
-            // console.log(`Got ${binArrays.length} bin arrays via getBinArrayForSwap`);
-          }
-        } catch (e) {
-          // console.log('getBinArrayForSwap failed:', e);
-        }
-      }
-      
-      if (!binArrays || binArrays.length === 0) {
-        throw new Error('No liquidity bins available in pool');
-      }
-      
-      // Determine swap direction based on token positions
-      // Token X = TTT, Token Y = SOL in our pool
-      const isTokenXSol = dlmm.tokenX.publicKey.toBase58() === 'So11111111111111111111111111111111111111112';
-      
-      // For isBuy (SOL -> Token): we want tokens (X), so swapForY = false if SOL is Y
-      // For sell (Token -> SOL): we want SOL (Y), so swapForY = true if SOL is Y
-      const swapForY = isBuy ? isTokenXSol : !isTokenXSol;
-      
-      // console.log('Swap params:', { 
-      //   isTokenXSol, 
-      //   swapForY,
-      //   tokenX: dlmm.tokenX.publicKey.toBase58().slice(0, 8),
-      //   tokenY: dlmm.tokenY.publicKey.toBase58().slice(0, 8),
-      //   amountStr: amount.toString()
-      // });
-      
-      // Create BN from string to avoid precision issues with large numbers
-      const swapAmount = new BN(amount.toString());
-      
-      // Wrap in try-catch to handle SDK assertion errors
-      let quote;
-      try {
-        quote = dlmm.swapQuote(
-          swapAmount,
-          swapForY,
-          new BN(100), // 1% slippage for quote
-          binArrays
-        );
-      } catch (quoteError: any) {
-        console.error('swapQuote error:', quoteError);
-        if (quoteError.message?.includes('Assertion failed') || 
-            quoteError.message?.includes('Insufficient')) {
-          throw new Error('Insufficient liquidity for this swap amount');
-        }
-        throw quoteError;
-      }
+    const poolPubkey = new PublicKey(poolAddress);
+    const mintPubkey = new PublicKey(tokenMint);
 
-      // console.log('Quote result:', {
-      //   outAmount: quote.outAmount.toString(),
-      //   fee: quote.fee.toString(),
-      // });
+    const tokenAVault = deriveTokenVaultAddress(mintPubkey, poolPubkey);
+    const tokenBVault = deriveTokenVaultAddress(NATIVE_MINT, poolPubkey);
 
-      // Handle large BN values that exceed Number.MAX_SAFE_INTEGER
-const outAmount = quote.outAmount.toString();
-const fee = quote.fee.toString();
+    const [tokenAInfo, tokenBInfo] = await Promise.all([
+      connection.getTokenAccountBalance(tokenAVault),
+      connection.getTokenAccountBalance(tokenBVault),
+    ]);
+    const reserveA = BigInt(tokenAInfo.value.amount); // token units
+    const reserveB = BigInt(tokenBInfo.value.amount); // lamports
 
-      return {
-  outAmount: Number(outAmount) || 0, // only for display (safe fallback)
-  fee: Number(fee) || 0,
-  priceImpact: quote.priceImpact ? Number(quote.priceImpact.toString()) : 0,
-};
-    } catch (error: any) {
-      console.error('Error getting Meteora quote:', error);
-      throw error;
+    if (reserveA === BigInt(0) || reserveB === BigInt(0)) {
+      throw new Error('Insufficient liquidity for this swap amount');
     }
+
+    const amountInBig = BigInt(Math.floor(amount));
+    const feeAmount = (amountInBig * BigInt(1)) / BigInt(100); // 1% fee
+    const amountInAfterFee = amountInBig - feeAmount;
+
+    let outAmount: bigint;
+    if (isBuy) {
+      // SOL → Token
+      outAmount = (amountInAfterFee * reserveA) / (reserveB + amountInAfterFee);
+    } else {
+      // Token → SOL
+      outAmount = (amountInAfterFee * reserveB) / (reserveA + amountInAfterFee);
+    }
+
+    // Price impact: compare effective rate vs spot rate
+    const spotRate = isBuy
+      ? Number(reserveA) / Number(reserveB)
+      : Number(reserveB) / Number(reserveA);
+    const effectiveRate = Number(outAmount) / Number(amountInBig);
+    const priceImpact = spotRate > 0
+      ? Math.abs((spotRate - effectiveRate) / spotRate) * 100
+      : 0;
+
+    return {
+      outAmount: Number(outAmount),
+      fee: Number(feeAmount),
+      priceImpact,
+    };
   }, [connection]);
 
   /**
-   * Get pool liquidity info
+   * Get pool liquidity info from DAMM v2 vault balances
    */
   const getPoolInfo = useCallback(async (
-    poolAddress: string
+    poolAddress: string,
+    tokenMint: string
   ): Promise<{ totalSol: number; totalTokens: number }> => {
-    try {
-      const poolPubkey = new PublicKey(poolAddress);
-      const dlmm = await DLMM.create(connection, poolPubkey, { cluster: 'mainnet-beta' });
-      
-      const bins = await dlmm.getBinsAroundActiveBin(100, 100);
-      let totalX = new BN(0);
-      let totalY = new BN(0);
-      
-      for (const bin of bins.bins || []) {
-        const x = bin.xAmount ? new BN(bin.xAmount) : new BN(0);
-        const y = bin.yAmount ? new BN(bin.yAmount) : new BN(0);
-        totalX = totalX.add(x);
-        totalY = totalY.add(y);
-      }
-      
-      // Determine which is SOL
-      const isTokenXSol = dlmm.tokenX.publicKey.toBase58() === 'So11111111111111111111111111111111111111112';
-      
-      return {
-        totalSol: isTokenXSol ? totalX.toNumber() / 1e9 : totalY.toNumber() / 1e9,
-        totalTokens: isTokenXSol ? totalY.toNumber() / 1e6 : totalX.toNumber() / 1e6,
-      };
-    } catch (error) {
-      console.error('Error getting pool info:', error);
-      throw error;
-    }
+    const poolPubkey = new PublicKey(poolAddress);
+    const mintPubkey = new PublicKey(tokenMint);
+
+    const tokenAVault = deriveTokenVaultAddress(mintPubkey, poolPubkey);
+    const tokenBVault = deriveTokenVaultAddress(NATIVE_MINT, poolPubkey);
+
+    const [tokenAInfo, tokenBInfo] = await Promise.all([
+      connection.getTokenAccountBalance(tokenAVault),
+      connection.getTokenAccountBalance(tokenBVault),
+    ]);
+
+    return {
+      totalTokens: Number(tokenAInfo.value.amount) / 1e6,
+      totalSol: Number(tokenBInfo.value.amount) / 1e9,
+    };
   }, [connection]);
 
   return {
@@ -434,3 +335,4 @@ const fee = quote.fee.toString();
     getPoolInfo,
   };
 }
+

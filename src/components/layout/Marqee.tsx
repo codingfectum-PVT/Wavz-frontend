@@ -19,7 +19,7 @@ export const Marqee = () => {
 
   const fetchTrades = async () => {
     try {
-      const res = await fetch('https://api.wavz.fun/api/trades');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/trades`);
       const data = await res.json();
 
       // 🔥 DEBUG (you can remove later)

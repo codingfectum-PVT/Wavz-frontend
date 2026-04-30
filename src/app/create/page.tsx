@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { CreateTokenForm } from '@/components/create/CreateTokenForm';
 
 export default function CreatePage() {

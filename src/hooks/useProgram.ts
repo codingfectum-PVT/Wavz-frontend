@@ -509,5 +509,150 @@ export function useLaunchpadActions() {
     }
   };
 
-  return { createToken, buy, sell };
+  /**
+   * Creates a token AND buys initial tokens in a single atomic transaction.
+   * This prevents sniper bots from front-running the initial buy.
+   */
+  const createAndBuy = async (
+    name: string,
+    symbol: string,
+    uri: string,
+    initialVirtualSolReserves: number = 30_000_000_000,
+    initialVirtualTokenReserves: number = 1_000_000_000_000_000,
+    solBuyAmount: number = 0, // lamports
+    slippageBps: number = 500,
+    antiSnipeConfig?: {
+      enabled: boolean;
+      maxWalletBps: number;
+      lockDuration: number;
+      batchDuration: number;
+      minTrustScore: number;
+      requireCivic: boolean;
+    }
+  ) => {
+    if (!program || !wallet.publicKey || !provider) {
+      throw new Error('Wallet not connected');
+    }
+
+    // Fetch vanity keypair
+    let mintKeypair: Keypair;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    try {
+      const response = await fetch(`${apiUrl}/api/vanity/keypair`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.keypair) {
+          const secretKey = typeof data.keypair === 'string'
+            ? JSON.parse(data.keypair) as number[]
+            : data.keypair;
+          mintKeypair = Keypair.fromSecretKey(Uint8Array.from(secretKey));
+        } else throw new Error('No vanity keypair');
+      } else throw new Error('Failed to fetch vanity keypair');
+    } catch {
+      mintKeypair = Keypair.generate();
+    }
+
+    const mint = mintKeypair.publicKey;
+    const userPubkey = wallet.publicKey;
+
+    const [configPda] = accounts.getConfigPda();
+    const [bondingCurvePda] = accounts.getBondingCurvePda(mint);
+    const [metadataPda] = accounts.getMetadataPda(mint);
+    const [walletProfilePda] = accounts.getWalletProfilePda(userPubkey);
+
+    const bondingCurveTokenAccount = accounts.getAssociatedTokenAddressSync(mint, bondingCurvePda, true);
+    const userTokenAccount = accounts.getAssociatedTokenAddressSync(mint, userPubkey);
+
+    const antiSnipe = antiSnipeConfig ? {
+      enabled: antiSnipeConfig.enabled,
+      maxWalletBps: antiSnipeConfig.maxWalletBps,
+      lockDuration: new BN(antiSnipeConfig.lockDuration),
+      batchDuration: new BN(antiSnipeConfig.batchDuration),
+      minTrustScore: antiSnipeConfig.minTrustScore,
+      requireCivic: antiSnipeConfig.requireCivic,
+    } : null;
+
+    try {
+      // Build createToken instruction
+      const createIx = await (program.methods as any)
+        .createToken(
+          name, symbol, uri,
+          new BN(initialVirtualSolReserves),
+          new BN(initialVirtualTokenReserves),
+          antiSnipe
+        )
+        .accounts({
+          config: configPda,
+          mint,
+          bondingCurve: bondingCurvePda,
+          metadata: metadataPda,
+          bondingCurveTokenAccount,
+          creator: userPubkey,
+          tokenProgram: accounts.TOKEN_PROGRAM_ID,
+          associatedTokenProgram: accounts.ASSOCIATED_TOKEN_PROGRAM_ID,
+          metadataProgram: accounts.METADATA_PROGRAM_ID,
+          systemProgram: accounts.SystemProgram.programId,
+          rent: accounts.SYSVAR_RENT_PUBKEY,
+        })
+        .signers([mintKeypair])
+        .instruction();
+
+      const transaction = new Transaction();
+      transaction.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 800_000 }));
+      transaction.add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1_000_000 }));
+      transaction.add(createIx);
+
+      // If initial buy amount provided, add buy instruction in same tx
+      if (solBuyAmount > 0) {
+        // Estimate tokens out from virtual reserves (before create, approximate)
+        const solAmountBN = new BN(solBuyAmount);
+        const virtualSol = new BN(initialVirtualSolReserves);
+        const virtualTokens = new BN(initialVirtualTokenReserves);
+        const config = await (program.account as any).launchpadConfig.fetch(configPda) as any;
+        const platformFeeBps = config.platformFeeBps || 100;
+        const fee = solAmountBN.mul(new BN(platformFeeBps)).div(new BN(10000));
+        const solAfterFee = solAmountBN.sub(fee);
+        const tokensOut = virtualTokens.mul(solAfterFee).div(virtualSol.add(solAfterFee));
+        const minTokensOut = tokensOut.mul(new BN(10000 - slippageBps)).div(new BN(10000));
+
+        const buyIx = await (program.methods as any)
+          .buy(solAmountBN, minTokensOut)
+          .accounts({
+            config: configPda,
+            mint,
+            bondingCurve: bondingCurvePda,
+            bondingCurveTokenAccount,
+            userTokenAccount,
+            walletProfile: walletProfilePda,
+            feeRecipient: config.authority,
+            user: userPubkey,
+            tokenProgram: accounts.TOKEN_PROGRAM_ID,
+            associatedTokenProgram: accounts.ASSOCIATED_TOKEN_PROGRAM_ID,
+            systemProgram: accounts.SystemProgram.programId,
+          })
+          .instruction();
+
+        transaction.add(buyIx);
+      }
+
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = userPubkey;
+
+      // Partial sign with mint keypair first
+      transaction.partialSign(mintKeypair);
+
+      const tx = await wallet.sendTransaction(transaction, connection, { skipPreflight: true });
+      await confirmTransactionPolling(connection, tx, blockhash, lastValidBlockHeight);
+
+      return { tx, mint: mint.toBase58() };
+    } catch (error: any) {
+      if (error?.message?.includes('already been processed') || error?.message?.includes('AlreadyProcessed')) {
+        return { tx: 'already_processed', mint: mint.toBase58() };
+      }
+      throw error;
+    }
+  };
+
+  return { createToken, createAndBuy, buy, sell };
 }

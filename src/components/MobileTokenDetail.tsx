@@ -68,7 +68,7 @@ const BondingCurveBar: FC<{
         <TrendingUp className="w-4 h-4 text-[#f59e0b]" />
         Bonding Curve Progress
       </div>
-      <span className="text-sm font-bold text-[#f59e0b]">{progress.toFixed(2)}%</span>
+      <span className="text-sm font-bold text-[#f59e0b]">{(progress || 0).toFixed(2)}%</span>
     </div>
 
     <div className="h-1.5 overflow-hidden rounded-full bg-[#19314d] mb-2">

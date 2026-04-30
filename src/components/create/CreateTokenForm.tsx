@@ -34,7 +34,7 @@ interface AntiSnipeSettings {
 export const CreateTokenForm: FC = () => {
   const { publicKey, connected } = useWallet();
   const router = useRouter();
-  const { createToken, buy } = useLaunchpadActions();
+  const { createToken, createAndBuy, buy } = useLaunchpadActions();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nameStatus, setNameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
   const nameCheckTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -210,12 +210,24 @@ export const CreateTokenForm: FC = () => {
           }
         : undefined;
 
-      const result = await createToken(
+      const buyAmountLamports = initialBuyAmount && parseFloat(initialBuyAmount) > 0
+        ? parseFloat(initialBuyAmount) * 1e9
+        : 0;
+
+      // Use createAndBuy to bundle create + initial buy in one atomic tx (anti-sniper)
+      toast.loading(
+        buyAmountLamports > 0 ? 'Creating token & buying in one transaction...' : 'Creating token on Solana...',
+        { id: 'create' }
+      );
+
+      const result = await createAndBuy(
         formData.name,
         formData.symbol,
         metadataUri,
         30_000_000_000,
         1_000_000_000_000_000,
+        buyAmountLamports,
+        500,
         effectiveAntiSnipe
       );
 
@@ -242,18 +254,6 @@ export const CreateTokenForm: FC = () => {
       }
 
       toast.success('Token created successfully!', { id: 'create' });
-
-      if (initialBuyAmount && parseFloat(initialBuyAmount) > 0 && result?.mint) {
-        try {
-          toast.loading('Buying initial tokens...', { id: 'initial-buy' });
-          const buyAmountLamports = parseFloat(initialBuyAmount) * 1e9;
-          await buy(result.mint, buyAmountLamports, 500);
-          toast.success('Initial tokens purchased!', { id: 'initial-buy' });
-        } catch (buyError) {
-          console.error('Initial buy failed:', buyError);
-          toast.error('Token created but initial buy failed', { id: 'initial-buy' });
-        }
-      }
 
       router.push(`/token/${result.mint}`);
     } catch (error: unknown) {

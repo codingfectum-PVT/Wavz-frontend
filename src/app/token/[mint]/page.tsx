@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { TokenDetail } from '@/components/tokens/TokenDetail';
 
 interface TokenPageProps {

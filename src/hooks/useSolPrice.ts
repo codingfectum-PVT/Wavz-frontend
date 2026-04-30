@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 
-// Jupiter Price API v2 — primary source
-const JUPITER_PRICE_API = 'https://api.jup.ag/price/v2?ids=SOL';
-// Wrapped SOL mint for Helius DAS fallback
-const WSOL_MINT = 'So11111111111111111111111111111111111111112';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+// SOL price is fetched via backend proxy to avoid CORS restrictions on Jupiter/CoinGecko
+const SOL_PRICE_URL = `${API_URL}/api/sol-price`;
 const CACHE_DURATION = 60_000; // 1 minute cache
-const FALLBACK_PRICE = 150; // Last-resort hardcoded fallback
+const FALLBACK_PRICE = 83; // Last-resort hardcoded fallback
 
 interface PriceCache {
   price: number;
@@ -14,32 +13,9 @@ interface PriceCache {
 
 let priceCache: PriceCache | null = null;
 
-/** Fetch SOL price from Helius DAS getAsset as secondary fallback */
-async function fetchPriceFromHelius(): Promise<number> {
-  const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL;
-  if (!rpcUrl) throw new Error('No Helius RPC URL configured');
-
-  const response = await fetch(rpcUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: '1',
-      method: 'getAsset',
-      params: { id: WSOL_MINT },
-    }),
-  });
-
-  if (!response.ok) throw new Error('Helius request failed');
-  const data = await response.json();
-  const price = data?.result?.token_info?.price_info?.price_per_token;
-  if (!price || isNaN(Number(price))) throw new Error('Invalid Helius price data');
-  return Number(price);
-}
-
 /**
  * Hook to get current SOL price in USD
- * Primary: Jupiter API — Fallback: Helius DAS — Last resort: $83 hardcoded
+ * Fetches via backend proxy → Jupiter API → CoinGecko fallback
  */
 export function useSolPrice() {
   const [price, setPrice] = useState<number>(priceCache?.price || FALLBACK_PRICE);
@@ -56,33 +32,17 @@ export function useSolPrice() {
       }
 
       try {
-        // 1. Try Jupiter (primary)
-        const response = await fetch(JUPITER_PRICE_API);
-        if (!response.ok) throw new Error('Jupiter request failed');
-
-        const data = await response.json();
-        const rawPrice = data?.data?.SOL?.price;
-        const solPrice = rawPrice ? parseFloat(rawPrice) : NaN;
-        if (!isNaN(solPrice) && solPrice > 0) {
-          priceCache = { price: solPrice, timestamp: Date.now() };
-          setPrice(solPrice);
-          setError(null);
-          return;
-        }
-        throw new Error('Invalid Jupiter price data');
-      } catch (jupiterErr) {
-        console.warn('Jupiter price failed, trying Helius fallback:', jupiterErr);
-        try {
-          // 2. Try Helius (secondary fallback)
-          const heliusPrice = await fetchPriceFromHelius();
-          priceCache = { price: heliusPrice, timestamp: Date.now() };
-          setPrice(heliusPrice);
-          setError(null);
-        } catch (heliusErr) {
-          console.error('Helius price fallback also failed:', heliusErr);
-          setError('Price fetch failed — using last known price');
-          // 3. Keep cached price or hardcoded fallback (already set as initial state)
-        }
+        const response = await fetch(SOL_PRICE_URL);
+        if (!response.ok) throw new Error('SOL price fetch failed');
+        const data = await response.json() as { price?: number };
+        if (!data.price || isNaN(data.price)) throw new Error('Invalid price response');
+        priceCache = { price: data.price, timestamp: Date.now() };
+        setPrice(data.price);
+        setError(null);
+      } catch (err) {
+        console.warn('SOL price fetch failed, using fallback:', err);
+        setError('Price fetch failed — using last known price');
+        // Keep cached price or hardcoded fallback (already set as initial state)
       } finally {
         setLoading(false);
       }

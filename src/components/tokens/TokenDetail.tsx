@@ -330,40 +330,44 @@ export const TokenDetail: FC<TokenDetailProps> = ({ mint }) => {
 
     const fetchMeteoraPrice = async () => {
       try {
-        // Dynamically import to avoid SSR issues
-        const { default: DLMM } = await import('@meteora-ag/dlmm');
+        const { deriveTokenVaultAddress } = await import('@meteora-ag/cp-amm-sdk');
         const { Connection, PublicKey } = await import('@solana/web3.js');
-        
+        const { NATIVE_MINT } = await import('@solana/spl-token');
+
         const connection = new Connection(
           process.env.NEXT_PUBLIC_RPC_URL || 'https://api.mainnet-beta.solana.com'
         );
-        
-        const dlmm = await DLMM.create(
-          connection, 
-          new PublicKey(token.meteoraPool!),
-          { cluster: 'mainnet-beta' }
-        );
-        
-        const activeBin = await dlmm.getActiveBin();
-        // Price from Meteora needs decimal adjustment
-        // Token has 6 decimals, SOL has 9 decimals
-        // activeBin.price is scaled by 10^(tokenDecimals - solDecimals) = 10^-3 = 0.001
-        // So we divide by 1000 to get the actual SOL per token price
-        const pricePerToken = parseFloat(activeBin.price) / 1000;
-        setMeteoraPrice(pricePerToken);
-        
-        // console.log('Meteora price fetched:', pricePerToken);
+
+        const poolPubkey = new PublicKey(token.meteoraPool!);
+        const mintPubkey = new PublicKey(token.mint!);
+
+        const tokenAVault = deriveTokenVaultAddress(mintPubkey, poolPubkey);
+        const tokenBVault = deriveTokenVaultAddress(NATIVE_MINT, poolPubkey);
+
+        const [tokenABalance, tokenBBalance] = await Promise.all([
+          connection.getTokenAccountBalance(tokenAVault),
+          connection.getTokenAccountBalance(tokenBVault),
+        ]);
+
+        const reserveToken = Number(tokenABalance.value.amount); // token units (6 decimals)
+        const reserveSOL = Number(tokenBBalance.value.amount);   // lamports (9 decimals)
+
+        if (reserveToken > 0) {
+          // SOL per token = (reserveSOL / 1e9) / (reserveToken / 1e6)
+          const pricePerToken = reserveSOL / (reserveToken * 1000);
+          setMeteoraPrice(pricePerToken);
+        }
       } catch (err) {
         console.error('Failed to fetch Meteora price:', err);
       }
     };
 
     fetchMeteoraPrice();
-    
+
     // Refresh price every 30 seconds
     const interval = setInterval(fetchMeteoraPrice, 30000);
     return () => clearInterval(interval);
-  }, [token?.graduated, token?.meteoraPool]);
+  }, [token?.graduated, token?.meteoraPool, token?.mint]);
 
   const marketStatsByWindow = useMemo(() => {
     const windows = [
@@ -476,19 +480,20 @@ export const TokenDetail: FC<TokenDetailProps> = ({ mint }) => {
   const virtualTokens = Number(token.virtualTokenReserves) / 1e6;
   const bondingCurvePrice = virtualSol / virtualTokens;
   
-  // For graduated tokens, ONLY use Meteora price (bonding curve data is stale after graduation)
-  // For non-graduated tokens, prefer chart close price > latest trade price > bonding curve (stale reserves)
-  const price = token.graduated ? meteoraPrice : (chartPrice ?? latestTradePrice ?? bondingCurvePrice);
-  const priceLoading = (token.graduated && meteoraPrice === null) || (!token.graduated && priceInitializing && latestTradePrice === null && chartPrice === null);
+  // For graduated tokens, use Meteora vault price; fall back to latest trade price while loading
+  const price = token.graduated
+    ? (meteoraPrice ?? latestTradePrice ?? chartPrice ?? bondingCurvePrice)
+    : (chartPrice ?? latestTradePrice ?? bondingCurvePrice);
+  const priceLoading = (token.graduated && meteoraPrice === null && latestTradePrice === null && chartPrice === null) || (!token.graduated && priceInitializing && latestTradePrice === null && chartPrice === null);
   
   // Market cap calculation - price is in SOL, convert to USD (dynamic price)
   const TOTAL_SUPPLY = 1_000_000_000; // 1B total supply
   const marketCapUsd = price ? price * TOTAL_SUPPLY * solPriceUsd : null;
 
-  // Calculate graduation progress (60 SOL threshold) - show 100% for graduated
+  // Calculate graduation progress (2 SOL threshold) - show 100% for graduated
   const realSol = Number(token.realSolReserves) / 1e9;
-  const graduationThreshold = 62;
-  const graduationProgress = token.graduated ? 100 : Math.min((realSol / graduationThreshold) * 100, 100);
+  const graduationThreshold = 2;
+  const graduationProgress = token.graduated ? 100 : Math.max(0, Math.min((realSol / graduationThreshold) * 100, 100));
 
   // Use metadata image or fallback
   const tokenImage = metadata?.image || token.image || `https://api.dicebear.com/7.x/shapes/svg?seed=${mint}`;
@@ -1064,7 +1069,7 @@ const filteredHoldersList = onChainHolders.filter((holder: any) => {
           <div className="rounded-2xl border border-[#f59e0b] bg-[#08172A] p-4 shadow-[0_0_18px_rgba(245,158,11,0.25)]">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-semibold">Bonding curve progress</span>
-              <span className="text-xs text-gray-300">{graduationProgress.toFixed(0)}%</span>
+              <span className="text-xs text-gray-300">{(graduationProgress || 0).toFixed(0)}%</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-[#19314d]">
               <div

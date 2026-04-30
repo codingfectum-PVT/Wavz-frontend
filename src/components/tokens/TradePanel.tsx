@@ -63,7 +63,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
         return;
       }
       try {
-        const info = await getPoolInfo(token.meteoraPool);
+        const info = await getPoolInfo(token.meteoraPool, token.mint);
         setPoolLiquidity({ totalSol: info.totalSol, totalTokens: info.totalTokens });
       } catch (err) {
         console.error('Error fetching pool info:', err);
@@ -146,7 +146,7 @@ export const TradePanel: FC<TradePanelProps> = ({ token, onTradeSuccess }) => {
           ? Math.floor(inputAmount * LAMPORTS_PER_SOL) // SOL to lamports
           : Math.floor(inputAmount * 1e6); // Token amount
 
-        const quote = await getQuote(token.meteoraPool, amountInSmallestUnit, mode === 'buy');
+        const quote = await getQuote(token.meteoraPool, amountInSmallestUnit, mode === 'buy', token.mint);
         setMeteoraQuote({
           outAmount: quote.outAmount,
           fee: quote.fee,
