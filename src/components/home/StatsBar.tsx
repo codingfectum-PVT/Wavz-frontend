@@ -73,7 +73,7 @@ const getRealMarketCap = (token: Token, solPriceUsd: number) => {
 const getBondingProgress = (token: Token) => {
   if (token.graduated) return 100;
   const realSol = Number(token.realSolReserves || 0) / 1e9;
-  return Math.max(0, Math.min((realSol / 60) * 100, 100));
+  return Math.max(0, Math.min((realSol / 62) * 100, 100));
 };
 
 /* ─── Token Row ───────────────────────────────────────── */
