@@ -22,6 +22,11 @@ const nextConfig = {
         hostname: 'wavz-backend-production.up.railway.app',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'pub-ba4662261f8d44beb9881f35fde247ee.r2.dev',
+        pathname: '/**',
+      },
     ],
   },
   webpack: (config) => {
