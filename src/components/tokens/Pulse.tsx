@@ -92,18 +92,25 @@ const TokenRow: FC<{
 
     const fetchMeteoraPrice = async () => {
       try {
-        const { default: DLMM } = await import('@meteora-ag/dlmm');
+        const { deriveTokenVaultAddress } = await import('@meteora-ag/cp-amm-sdk');
         const { Connection, PublicKey } = await import('@solana/web3.js');
+        const { NATIVE_MINT } = await import('@solana/spl-token');
         const connection = new Connection(
           process.env.NEXT_PUBLIC_RPC_URL || 'https://api.mainnet-beta.solana.com'
         );
-        const dlmm = await DLMM.create(
-          connection,
-          new PublicKey(token.meteoraPool!),
-          { cluster: 'mainnet-beta' }
-        );
-        const activeBin = await dlmm.getActiveBin();
-        setMeteoraPrice(parseFloat(activeBin.price) / 1000);
+        const poolPubkey = new PublicKey(token.meteoraPool!);
+        const mintPubkey = new PublicKey(token.mint!);
+        const tokenAVault = deriveTokenVaultAddress(mintPubkey, poolPubkey);
+        const tokenBVault = deriveTokenVaultAddress(NATIVE_MINT, poolPubkey);
+        const [tokenABalance, tokenBBalance] = await Promise.all([
+          connection.getTokenAccountBalance(tokenAVault),
+          connection.getTokenAccountBalance(tokenBVault),
+        ]);
+        const reserveToken = Number(tokenABalance.value.amount);
+        const reserveSOL = Number(tokenBBalance.value.amount);
+        if (reserveToken > 0) {
+          setMeteoraPrice(reserveSOL / (reserveToken * 1000));
+        }
       } catch (err) {
         console.error('Pulse TokenRow: Failed to fetch Meteora price:', err);
       }
@@ -127,7 +134,7 @@ const TokenRow: FC<{
 
   const getBondingProgress = (token: Token) => {
     const realSol = Number(token.realSolReserves || 0) / 1e9;
-    const threshold = 2;
+    const threshold = 62;
     if (token.graduated) return 100;
     return Math.max(0, Math.min((realSol / threshold) * 100, 100));
   };
@@ -664,7 +671,7 @@ const handleQuickBuy = async (token: Token, amount: string) => {
   const all = Array.from(map.values());
 const getBondingProgress = (token: Token) => {
   const realSol = Number(token.realSolReserves || 0) / 1e9;
-  const threshold = 2;
+  const threshold = 62;
 
   if (token.graduated) return 100;
 

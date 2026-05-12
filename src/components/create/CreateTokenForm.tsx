@@ -255,6 +255,21 @@ export const CreateTokenForm: FC = () => {
 
       toast.success('Token created successfully!', { id: 'create' });
 
+      // Reset form for next token creation
+      setFormData({
+        name: '',
+        symbol: '',
+        description: '',
+        image: null,
+        imagePreview: '',
+        banner: null,
+        bannerPreview: '',
+        twitter: '',
+        telegram: '',
+        website: '',
+      });
+      setInitialBuyAmount('');
+
       router.push(`/token/${result.mint}`);
     } catch (error: unknown) {
       console.error('Error creating token:', error);
@@ -276,7 +291,7 @@ export const CreateTokenForm: FC = () => {
     'w-full rounded-xl border border-[#223a56] bg-[#081a30] px-4 py-3 text-white placeholder:text-[#7f93aa] focus:outline-none focus:border-[#2d4f76]';
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 text-white">
+    <form onSubmit={handleSubmit} autoComplete="off" className="space-y-6 text-white">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
         <div className={sectionClass}>
           <div className="flex flex-col gap-4 sm:flex-row">
@@ -358,6 +373,7 @@ export const CreateTokenForm: FC = () => {
                 onChange={handleNameChange}
                 placeholder="Name your token"
                 maxLength={32}
+                autoComplete="off"
                 className={`${inputClass} pr-10 ${
                   nameStatus === 'taken'
                     ? 'border-red-500 focus:border-red-500'
@@ -390,6 +406,7 @@ export const CreateTokenForm: FC = () => {
               onChange={(e) => setFormData({ ...formData, symbol: e.target.value.toUpperCase() })}
               placeholder="Add a token ticker (e.g. PEPE)"
               maxLength={10}
+              autoComplete="off"
               className={inputClass}
               required
             />
@@ -424,6 +441,7 @@ export const CreateTokenForm: FC = () => {
               value={formData.website}
               onChange={(e) => setFormData({ ...formData, website: e.target.value })}
               placeholder="https://your.site"
+              autoComplete="off"
               className={inputClass}
             />
           </div>
@@ -436,6 +454,7 @@ export const CreateTokenForm: FC = () => {
               value={formData.twitter}
               onChange={(e) => setFormData({ ...formData, twitter: e.target.value })}
               placeholder="https://x.com/username"
+              autoComplete="off"
               className={inputClass}
             />
           </div>
@@ -448,6 +467,7 @@ export const CreateTokenForm: FC = () => {
               value={formData.telegram}
               onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
               placeholder="https://t.me/username"
+              autoComplete="off"
               className={inputClass}
             />
           </div>

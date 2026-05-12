@@ -37,7 +37,7 @@ export const SocketProvider: FC<SocketProviderProps> = ({ children }) => {
     // console.log('🔌 Connecting to WebSocket server:', WS_URL);
     
     const newSocket = io(WS_URL, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,

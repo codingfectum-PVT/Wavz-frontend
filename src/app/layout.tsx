@@ -24,8 +24,21 @@ export const metadata: Metadata = {
   description:
     'Launch your own token with a fair bonding curve. No presale, no team allocation. Just fair and fun.',
   keywords: ['solana', 'token', 'launchpad', 'meme', 'bonding curve', 'defi'],
-    icons: {
+  metadataBase: new URL('https://launchpad.wavz.fun'),
+  icons: {
     icon: '/favicon.ico',
+  },
+  other: {
+    'dapp:name': 'Wavz.fun',
+    'dapp:description': 'Solana token launchpad — fair bonding curve, no presale',
+    'dapp:url': 'https://launchpad.wavz.fun',
+    'phantom:app-id': '6a2797bc-ab54-4601-8c4f-9479f2fc02e0',
+    'dapp-identity': JSON.stringify({
+      appName: 'Wavz.fun',
+      appUrl: 'https://launchpad.wavz.fun',
+      appId: '6a2797bc-ab54-4601-8c4f-9479f2fc02e0',
+      iconUrl: 'https://launchpad.wavz.fun/favicon.ico',
+    }),
   },
 }
 export default function RootLayout({

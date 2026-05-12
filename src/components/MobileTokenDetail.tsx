@@ -178,7 +178,7 @@ const InfoTab: FC<MobileTokenDetailProps> = (props) => {
             </a>
           )}
           {token.graduated && token.meteoraPool && (
-            <a href={`https://meteora.ag/dlmm/${token.meteoraPool}`} target="_blank" rel="noopener noreferrer"
+            <a href={`https://meteora.ag/dammv2/${token.meteoraPool}`} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-1 rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-400 border border-blue-500/20">
               <ExternalLink className="w-2.5 h-2.5" /> Meteora
             </a>

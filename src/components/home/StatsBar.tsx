@@ -73,7 +73,7 @@ const getRealMarketCap = (token: Token, solPriceUsd: number) => {
 const getBondingProgress = (token: Token) => {
   if (token.graduated) return 100;
   const realSol = Number(token.realSolReserves || 0) / 1e9;
-  return Math.max(0, Math.min((realSol / 2) * 100, 100));
+  return Math.max(0, Math.min((realSol / 62) * 100, 100));
 };
 
 /* ─── Token Row ───────────────────────────────────────── */
@@ -101,19 +101,25 @@ const TokenRow: FC<{ token: Token; variant: Variant }> = ({ token, variant }) =>
 
     const fetchMeteoraPrice = async () => {
       try {
-        const { default: DLMM } = await import('@meteora-ag/dlmm');
+        const { deriveTokenVaultAddress } = await import('@meteora-ag/cp-amm-sdk');
         const { Connection, PublicKey } = await import('@solana/web3.js');
+        const { NATIVE_MINT } = await import('@solana/spl-token');
         const connection = new Connection(
           process.env.NEXT_PUBLIC_RPC_URL || 'https://api.mainnet-beta.solana.com'
         );
-        const dlmm = await DLMM.create(
-          connection,
-          new PublicKey(token.meteoraPool!),
-          { cluster: 'mainnet-beta' }
-        );
-        const activeBin = await dlmm.getActiveBin();
-        // Same decimal correction as TokenDetail: token=6dec, SOL=9dec → /1000
-        setMeteoraPrice(parseFloat(activeBin.price) / 1000);
+        const poolPubkey = new PublicKey(token.meteoraPool!);
+        const mintPubkey = new PublicKey(token.mint!);
+        const tokenAVault = deriveTokenVaultAddress(mintPubkey, poolPubkey);
+        const tokenBVault = deriveTokenVaultAddress(NATIVE_MINT, poolPubkey);
+        const [tokenABalance, tokenBBalance] = await Promise.all([
+          connection.getTokenAccountBalance(tokenAVault),
+          connection.getTokenAccountBalance(tokenBVault),
+        ]);
+        const reserveToken = Number(tokenABalance.value.amount);
+        const reserveSOL = Number(tokenBBalance.value.amount);
+        if (reserveToken > 0) {
+          setMeteoraPrice(reserveSOL / (reserveToken * 1000));
+        }
       } catch (err) {
         console.error('TokenRow: Failed to fetch Meteora price:', err);
       }

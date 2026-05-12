@@ -1,8 +1,10 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 import { useUser, useUserTrades, Token } from '@/hooks/useApi';
 import {
   Loader2,
@@ -73,7 +75,28 @@ export default function ProfilePage() {
   const [refreshingTrades, setRefreshingTrades] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const holdings = profile?.holdings || [];
+  // On-chain holdings: fetch from backend which cross-refs Helius with our platform tokens
+  const [onChainHoldings, setOnChainHoldings] = useState<Holding[]>([]);
+  const [holdingsLoading, setHoldingsLoading] = useState(true);
+
+  const fetchOnChainHoldings = async () => {
+    if (!address) return;
+    try {
+      setHoldingsLoading(true);
+      const res = await fetch(`${API_URL}/api/users/${address}/onchain-holdings`);
+      if (res.ok) {
+        const data = await res.json();
+        setOnChainHoldings(Array.isArray(data) ? data : []);
+      }
+    } catch {} finally {
+      setHoldingsLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchOnChainHoldings(); }, [address]);
+
+  // Prefer on-chain holdings (live), fall back to DB holdings
+  const holdings = onChainHoldings.length > 0 ? onChainHoldings : (profile?.holdings || []);
   const createdTokens = profile?.tokensCreated || [];
 
   const shortAddress = `${address.slice(0, 4)}...${address.slice(-4)}`;
@@ -139,7 +162,7 @@ export default function ProfilePage() {
   const handleRefreshTokens = async () => {
     setRefreshingTokens(true);
     try {
-      await refetchUser();
+      await Promise.all([refetchUser(), fetchOnChainHoldings()]);
     } finally {
       setRefreshingTokens(false);
     }
@@ -219,7 +242,7 @@ export default function ProfilePage() {
                 <Wallet className="h-3.5 w-3.5 fill-current text-[#8fa4bb]" />
                 <span>Token Owned</span>
               </p>
-              <p className="mt-1 text-2xl font-semibold">{holdings.length}</p>
+              <p className="mt-1 text-2xl font-semibold">{holdingsLoading ? '…' : holdings.length}</p>
             </div>
             <div className="rounded-xl bg-[#182536] p-4">
               <p className="flex items-center gap-1.5 text-sm text-[#8fa4bb]">

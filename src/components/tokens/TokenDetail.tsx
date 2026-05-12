@@ -105,7 +105,11 @@ export const TokenDetail: FC<TokenDetailProps> = ({ mint }) => {
         // Fetch metadata from URI if available
         if (data.uri) {
           try {
-            const metaRes = await fetch(data.uri);
+            const R2_BASE = 'https://pub-ba4662261f8d44beb9881f35fde247ee.r2.dev';
+            const metaUri = data.uri.startsWith(R2_BASE)
+              ? data.uri.replace(R2_BASE, '/api/r2')
+              : data.uri;
+            const metaRes = await fetch(metaUri);
             const metaData = await metaRes.json();
             // console.log("metaDassta",metaData);
             
@@ -490,9 +494,9 @@ export const TokenDetail: FC<TokenDetailProps> = ({ mint }) => {
   const TOTAL_SUPPLY = 1_000_000_000; // 1B total supply
   const marketCapUsd = price ? price * TOTAL_SUPPLY * solPriceUsd : null;
 
-  // Calculate graduation progress (2 SOL threshold) - show 100% for graduated
+  // Calculate graduation progress (62 SOL threshold) - show 100% for graduated
   const realSol = Number(token.realSolReserves) / 1e9;
-  const graduationThreshold = 2;
+  const graduationThreshold = 62;
   const graduationProgress = token.graduated ? 100 : Math.max(0, Math.min((realSol / graduationThreshold) * 100, 100));
 
   // Use metadata image or fallback
@@ -699,7 +703,7 @@ const filteredHoldersList = onChainHolders.filter((holder: any) => {
                       )}
                       {token.graduated && token.meteoraPool && (
                         <a
-                          href={`https://meteora.ag/dlmm/${token.meteoraPool}`}
+                          href={`https://meteora.ag/dammv2/${token.meteoraPool}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center space-x-1 rounded-full bg-blue-500/20 px-2 py-1 text-xs text-blue-400 hover:bg-blue-500/30 transition-colors"
