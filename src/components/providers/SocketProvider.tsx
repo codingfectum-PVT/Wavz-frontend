@@ -40,7 +40,9 @@ export const SocketProvider: FC<SocketProviderProps> = ({ children }) => {
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 30000,
+      timeout: 30000,
     });
 
     newSocket.on('connect', () => {
